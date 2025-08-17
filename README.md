@@ -17,9 +17,18 @@ This project creates a sophisticated recommendation engine that:
 
 ### Recommendation Algorithms
 
-1. **Popularity-based Recommender** (`PopSimRecommender`): Uses content similarity and global popularity scores
-2. **SVD Matrix Factorization** (`SVDAutoRecommender`): Employs collaborative filtering with latent factors
-3. **Blended Approach**: Combines multiple algorithms for better recommendations
+1. **All-in-One Four-Stage Recommender** (`AllInOneRecommender`): Advanced ML-based system with:
+   - Exposure bias modeling
+   - Pairwise preference learning
+   - MMR diversity optimization
+   - Temporal split evaluation
+   - **Recommended for most users**
+
+2. **Popularity-based Recommender** (`PopSimRecommender`): Uses content similarity and global popularity scores
+
+3. **SVD Matrix Factorization** (`SVDAutoRecommender`): Employs collaborative filtering with latent factors
+
+4. **Blended Approach**: Combines multiple algorithms for better recommendations
 
 ### Content Analysis
 
@@ -103,7 +112,26 @@ imdbrec ingest --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xls
 
 #### 2. Generate Recommendations
 
-Get personalized movie recommendations:
+##### All-in-One Four-Stage Recommender (Recommended)
+
+The most advanced recommendation system with machine learning:
+
+```bash
+# Basic usage
+imdbrec all-in-one --config config.toml --topk 25
+
+# With evaluation and export
+imdbrec all-in-one --config config.toml --topk 50 --evaluate --export-csv recommendations.csv
+
+# Advanced options
+imdbrec all-in-one --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx --topk 25 --user-weight 0.8 --global-weight 0.2 --save-model model.pkl
+```
+
+See [All-in-One Guide](docs/ALL_IN_ONE_GUIDE.md) for detailed documentation.
+
+##### Traditional Blended Recommender
+
+Get personalized movie recommendations using the original system:
 
 ```bash
 # Using config file
