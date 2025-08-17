@@ -240,10 +240,10 @@ class TestSeleniumConfigSafety:
                 pattern not in content.lower()
             ), f"Found potential hardcoded credential pattern: {pattern}"
 
-        # Verify login function is marked as TODO
+        # Verify login function uses environment variables for credentials
         assert (
-            "TODO: Implement login" in content
-        ), "Login function should be marked as TODO for security"
+            "os.getenv" in content
+        ), "Login function should use environment variables for credentials"
 
     def test_selenium_security_options(self):
         """Test that selenium uses secure browser options."""
