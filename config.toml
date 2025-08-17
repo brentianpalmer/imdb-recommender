@@ -1,0 +1,12 @@
+[data]
+ratings_csv_path = "data/raw/ratings.csv"
+watchlist_path = "data/raw/watchlist.xlsx"
+movies_path = "data/processed/movies.parquet"
+ratings_path = "data/processed/ratings.parquet"
+watchlist_processed_path = "data/processed/watchlist.parquet"
+
+[recommendation]
+user_weight = 0.7
+global_weight = 0.3
+recency_weight = 0.5
+topk = 25

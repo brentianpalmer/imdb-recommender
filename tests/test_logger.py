@@ -1,0 +1,10 @@
+from imdb_recommender.logger import ActionLogger
+import csv
+
+def test_logger(tmp_path):
+    logger = ActionLogger(data_dir=str(tmp_path), batch_id='b')
+    logger.log_rate('tt0480249', 9)
+    logger.log_rate('tt0480249', 9)
+    logger.log_watchlist('tt0111161', add=True)
+    rows = list(csv.DictReader(open(tmp_path/'imdb_actions_log.csv')))
+    assert len(rows) == 2
