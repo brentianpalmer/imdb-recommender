@@ -1,1 +1,22 @@
 timestamp_iso,imdb_const,action,rating,notes,source,batch_id
+2025-08-17T16:56:29.236305+00:00,tt1234567,rate,8,Test rating,cli,6962d5fc-b8f9-4227-87ff-f9169fec40b5
+2025-08-17T16:56:34.199488+00:00,tt2345678,watchlist_add,,,cli,1c2b25fd-c7e9-4154-b3c4-1532715aaf98
+2025-08-17T17:15:50.824837+00:00,tt1234567,rate,9,Great movie,test,fb5f1df6-3e68-4739-a93d-554a5b137345
+2025-08-17T17:15:50.825270+00:00,tt2345678,watchlist_add,,Want to watch,test,fb5f1df6-3e68-4739-a93d-554a5b137345
+2025-08-17T17:15:50.825317+00:00,tt3456789,watchlist_remove,,Watched already,test,fb5f1df6-3e68-4739-a93d-554a5b137345
+2025-08-17T17:18:43.313190+00:00,tt0111161,rate,10,The Shawshank Redemption - masterpiece,demo,9576b00b-9ca8-472a-bae2-abc1a6344243
+2025-08-17T17:18:43.313707+00:00,tt0068646,rate,9,The Godfather - classic,demo,9576b00b-9ca8-472a-bae2-abc1a6344243
+2025-08-17T17:18:43.313748+00:00,tt0468569,rate,8,The Dark Knight - great superhero film,demo,9576b00b-9ca8-472a-bae2-abc1a6344243
+2025-08-17T17:18:43.313784+00:00,tt0108052,watchlist_add,,Schindler's List - want to watch,demo,9576b00b-9ca8-472a-bae2-abc1a6344243
+2025-08-17T17:18:43.313816+00:00,tt0167260,watchlist_add,,The Lord of the Rings - rewatch,demo,9576b00b-9ca8-472a-bae2-abc1a6344243
+2025-08-17T17:18:43.313848+00:00,tt0110912,watchlist_remove,,Pulp Fiction - already seen,demo,9576b00b-9ca8-472a-bae2-abc1a6344243
+2025-08-17T17:25:34.375703+00:00,tt0111161,rate,10,The Shawshank Redemption - masterpiece,demo,2c57d5e4-1808-4c36-b532-1e649797d6c6
+2025-08-17T17:25:34.376332+00:00,tt0068646,rate,9,The Godfather - classic,demo,2c57d5e4-1808-4c36-b532-1e649797d6c6
+2025-08-17T17:25:34.376396+00:00,tt0468569,rate,8,The Dark Knight - great superhero film,demo,2c57d5e4-1808-4c36-b532-1e649797d6c6
+2025-08-17T17:25:34.376453+00:00,tt0108052,watchlist_add,,Schindler's List - want to watch,demo,2c57d5e4-1808-4c36-b532-1e649797d6c6
+2025-08-17T17:25:34.376503+00:00,tt0167260,watchlist_add,,The Lord of the Rings - rewatch,demo,2c57d5e4-1808-4c36-b532-1e649797d6c6
+2025-08-17T17:25:34.376551+00:00,tt0110912,watchlist_remove,,Pulp Fiction - already seen,demo,2c57d5e4-1808-4c36-b532-1e649797d6c6
+2025-08-17T17:36:01.415171+00:00,tt0111161,rate,9,Test rating - The Shawshank Redemption,selenium_test,5f38ee03-7b0e-4877-96fd-46c05b54dd3b
+2025-08-17T17:36:01.415701+00:00,tt0068646,watchlist_add,,Test watchlist add - The Godfather,selenium_test,5f38ee03-7b0e-4877-96fd-46c05b54dd3b
+2025-08-17T17:36:09.872647+00:00,tt0111161,rate,9,Test rating - The Shawshank Redemption,selenium_test,ba216b92-c789-450b-a204-3bea80c1f056
+2025-08-17T17:36:09.872802+00:00,tt0068646,watchlist_add,,Test watchlist add - The Godfather,selenium_test,ba216b92-c789-450b-a204-3bea80c1f056
