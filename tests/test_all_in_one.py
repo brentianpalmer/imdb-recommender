@@ -363,6 +363,66 @@ class TestAllInOneRecommender:
             assert "tconst" in df.columns
             assert "score_final" in df.columns
 
+    def test_build_candidates(self, sample_dataset):
+        """Test candidate pool building."""
+        recommender = AllInOneRecommender(sample_dataset, random_seed=42)
+
+        # Build candidates
+        candidates = recommender.build_candidates(max_candidates=10)
+
+        # Check that candidates are returned
+        assert isinstance(candidates, list)
+        assert len(candidates) <= 10
+        assert all(isinstance(c, str) for c in candidates)
+
+        # Check that candidates are valid item IDs
+        all_item_ids = set(recommender.catalog["imdb_const"].values)
+        for candidate in candidates:
+            assert candidate in all_item_ids
+
+    def test_score_with_candidates(self, sample_dataset):
+        """Test scoring with restricted candidate pool."""
+        recommender = AllInOneRecommender(sample_dataset, random_seed=42)
+
+        # Build a small candidate pool
+        candidates = recommender.build_candidates(max_candidates=3)
+
+        # Score with candidates
+        scores, explanations = recommender.score(
+            seeds=[], user_weight=0.7, global_weight=0.3, exclude_rated=True, candidates=candidates
+        )
+
+        # Check that only candidates are scored
+        assert len(scores) <= len(candidates)
+        for item_id in scores.keys():
+            assert item_id in candidates
+
+    def test_evaluate_with_candidates(self, sample_dataset):
+        """Test evaluation with candidate restriction."""
+        recommender = AllInOneRecommender(sample_dataset, random_seed=42)
+
+        # Test evaluation with candidates
+        metrics = recommender.evaluate_temporal_split(
+            test_size=0.4
+        )  # Larger test size for better testing
+
+        # Check metrics structure
+        assert isinstance(metrics, dict)
+
+        # If we have enough data, check that metrics are reasonable
+        if len(metrics) > 0:
+            for metric_name, metric_value in metrics.items():
+                assert isinstance(metric_value, int | float)
+                assert np.isfinite(metric_value)
+
+                # Hits@10 and NDCG@10 should be between 0 and 1
+                if metric_name in ["hits_at_10", "ndcg_at_10"]:
+                    assert 0 <= metric_value <= 1
+
+                # Diversity should be reasonable (typically 0-1 range)
+                if metric_name == "diversity":
+                    assert 0 <= metric_value <= 1
+
 
 if __name__ == "__main__":
     # Run a simple test

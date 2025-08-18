@@ -766,6 +766,146 @@ class AllInOneRecommender(RecommenderAlgo):
 
         return shelves
 
+    def build_candidates(
+        self,
+        features_df: pd.DataFrame | None = None,
+        feature_matrix: np.ndarray | None = None,
+        max_candidates: int = 500,
+        popular_ratio: float = 0.4,
+        neighbor_ratio: float = 0.4,
+        watchlist_ratio: float = 0.2,
+    ) -> list[str]:
+        """
+        Build a realistic candidate pool for recommendation and evaluation.
+
+        Creates a union of:
+        (a) Unrated watchlist items
+        (b) Top-popular items not yet rated
+        (c) Nearest neighbors of highly-rated titles
+
+        Args:
+            features_df: Feature DataFrame (if None, will build it)
+            feature_matrix: Feature matrix (if None, will build it)
+            max_candidates: Maximum number of candidates to return
+            popular_ratio: Fraction of candidates from popular items
+            neighbor_ratio: Fraction of candidates from nearest neighbors
+            watchlist_ratio: Fraction of candidates from watchlist
+
+        Returns:
+            List of item IDs (imdb_const) forming the candidate pool
+        """
+        print(f"🎯 Building candidate pool (max={max_candidates})...")
+
+        # Build features if not provided
+        if features_df is None:
+            features_df = self.build_features()
+        if feature_matrix is None:
+            feature_matrix = self.build_feature_matrix(features_df)
+
+        candidates = set()
+
+        # Get rated items to exclude
+        rated_items = set(self.ratings["imdb_const"].values) if len(self.ratings) > 0 else set()
+
+        # === (a) Unrated watchlist items ===
+        watchlist_candidates = []
+        if len(self.watchlist) > 0:
+            for const in self.watchlist["imdb_const"].values:
+                if const not in rated_items and const in features_df["imdb_const"].values:
+                    watchlist_candidates.append(const)
+
+        n_watchlist = min(len(watchlist_candidates), int(max_candidates * watchlist_ratio))
+        candidates.update(watchlist_candidates[:n_watchlist])
+
+        # === (b) Top-popular gaps ===
+        # Get items sorted by popularity score, excluding rated ones
+        unrated_items = features_df[
+            (~features_df["imdb_const"].isin(rated_items))
+            & (~features_df["imdb_const"].isin(candidates))
+        ].copy()
+
+        if len(unrated_items) > 0:
+            unrated_items = unrated_items.sort_values("popularity_raw", ascending=False)
+            n_popular = min(len(unrated_items), int(max_candidates * popular_ratio))
+            popular_candidates = unrated_items.head(n_popular)["imdb_const"].tolist()
+            candidates.update(popular_candidates)
+
+        # === (c) Nearest neighbors of high-rated titles ===
+        if len(self.ratings) > 0 and feature_matrix is not None:
+            from sklearn.metrics.pairwise import cosine_similarity
+
+            # Get highly-rated items (>= 8)
+            high_rated_items = self.ratings[self.ratings["my_rating"] >= 8]["imdb_const"].values
+
+            if len(high_rated_items) > 0:
+                # Find their indices in features_df
+                high_rated_indices = []
+                for const in high_rated_items:
+                    idx_matches = features_df[features_df["imdb_const"] == const].index
+                    if len(idx_matches) > 0:
+                        high_rated_indices.extend(idx_matches)
+
+                if len(high_rated_indices) > 0:
+                    # Get feature vectors for high-rated items
+                    high_rated_features = feature_matrix[high_rated_indices]
+                    avg_high_rated = np.mean(high_rated_features, axis=0).reshape(1, -1)
+
+                    # Calculate similarities to all unrated items
+                    unrated_mask = ~features_df["imdb_const"].isin(rated_items | candidates)
+                    unrated_indices = features_df.index[unrated_mask].tolist()
+
+                    if len(unrated_indices) > 0:
+                        unrated_features = feature_matrix[unrated_indices]
+                        similarities = cosine_similarity(avg_high_rated, unrated_features).flatten()
+
+                        # Get top similar items
+                        n_neighbors = min(len(similarities), int(max_candidates * neighbor_ratio))
+                        top_neighbor_indices = np.argsort(similarities)[::-1][:n_neighbors]
+
+                        neighbor_candidates = []
+                        for idx in top_neighbor_indices:
+                            original_idx = unrated_indices[idx]
+                            const = features_df.loc[original_idx, "imdb_const"]
+                            neighbor_candidates.append(const)
+
+                        candidates.update(neighbor_candidates)
+
+        # Fill remaining slots with random popular items if needed
+        remaining_slots = max_candidates - len(candidates)
+        if remaining_slots > 0:
+            all_unrated = features_df[
+                (~features_df["imdb_const"].isin(rated_items))
+                & (~features_df["imdb_const"].isin(candidates))
+            ]
+            if len(all_unrated) > 0:
+                # Sort by popularity and take top remaining
+                remaining_items = all_unrated.sort_values("popularity_raw", ascending=False)
+                additional_candidates = remaining_items.head(remaining_slots)["imdb_const"].tolist()
+                candidates.update(additional_candidates)
+
+        candidates_list = list(candidates)[:max_candidates]
+
+        print(f"✅ Built candidate pool: {len(candidates_list)} items")
+        print(f"   - Watchlist: {n_watchlist}")
+        popular_count = len(
+            [
+                c
+                for c in candidates_list
+                if c in (popular_candidates if "popular_candidates" in locals() else [])
+            ]
+        )
+        neighbor_count = len(
+            [
+                c
+                for c in candidates_list
+                if c in (neighbor_candidates if "neighbor_candidates" in locals() else [])
+            ]
+        )
+        print(f"   - Popular: {popular_count}")
+        print(f"   - Neighbors: {neighbor_count}")
+
+        return candidates_list
+
     def score(
         self,
         seeds: list[str],
@@ -773,6 +913,7 @@ class AllInOneRecommender(RecommenderAlgo):
         global_weight: float = 0.3,
         recency_weight: float = 0.0,
         exclude_rated: bool = True,
+        candidates: list[str] | None = None,
     ) -> tuple[dict[str, float], dict[str, str]]:
         """
         Generate recommendations using the four-stage process.
@@ -783,6 +924,7 @@ class AllInOneRecommender(RecommenderAlgo):
             global_weight: Weight for popularity scores (maps to popularity_weight)
             recency_weight: Recency bias (not used, built into features)
             exclude_rated: Whether to exclude already rated items
+            candidates: Optional list of candidate item IDs to restrict scoring to
 
         Returns:
             Tuple of (scores, explanations)
@@ -795,6 +937,13 @@ class AllInOneRecommender(RecommenderAlgo):
 
         # === Stage 1: Feature Engineering ===
         features_df = self.build_features()
+
+        # Filter to candidates if provided
+        if candidates is not None:
+            candidate_mask = features_df["imdb_const"].isin(candidates)
+            features_df = features_df[candidate_mask].reset_index(drop=True)
+            print(f"🎯 Filtered to {len(features_df)} candidate items")
+
         feature_matrix = self.build_feature_matrix(features_df)
         self.feature_matrix = feature_matrix
 
@@ -918,12 +1067,27 @@ class AllInOneRecommender(RecommenderAlgo):
         self.dataset = train_dataset
 
         try:
-            # Generate recommendations
+            # Build candidate pool based on training data
+            # Include test items to ensure they can be recommended
+            test_items_set = set(test_ratings["imdb_const"].values)
+
+            # Build candidates using training data context
+            candidates = self.build_candidates(max_candidates=1000)
+
+            # Ensure all test items are in candidates (for fair evaluation)
+            candidates_set = set(candidates)
+            missing_test_items = test_items_set - candidates_set
+            if missing_test_items:
+                candidates.extend(list(missing_test_items))
+                print(f"📌 Added {len(missing_test_items)} test items to candidate pool")
+
+            # Generate recommendations on candidate pool
             scores, explanations = self.score(
                 seeds=[],
                 user_weight=self.personal_weight,
                 global_weight=self.popularity_weight,
                 exclude_rated=False,  # Include rated items for evaluation
+                candidates=candidates,
             )
 
             # Calculate metrics
