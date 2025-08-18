@@ -177,6 +177,36 @@ class TestAllInOneRecommender:
         assert len(X_hard) > 0
         assert len(w_hard) == len(y_hard)
 
+    def test_train_preference_model(self, sample_dataset):
+        """Test preference model training and calibration."""
+        recommender = AllInOneRecommender(sample_dataset, random_seed=42)
+        features_df = recommender.build_features()
+        feature_matrix = recommender.build_feature_matrix(features_df)
+        X_pairs, y_pairs, weights = recommender.build_pairwise_data(features_df, feature_matrix)
+
+        if len(X_pairs) > 0:
+            # Train with C parameter and sigmoid calibration
+            recommender.train_preference_model(
+                X_pairs,
+                y_pairs,
+                sample_weight=weights,
+                C=0.5,
+                calibration="sigmoid",
+            )
+            probs = recommender.preference_model.predict_proba(X_pairs)
+            assert np.allclose(probs.sum(axis=1), 1.0)
+
+            # Train with alpha parameter and isotonic calibration
+            recommender.train_preference_model(
+                X_pairs,
+                y_pairs,
+                sample_weight=weights,
+                alpha=0.01,
+                calibration="isotonic",
+            )
+            probs2 = recommender.preference_model.predict_proba(X_pairs)
+            assert np.allclose(probs2.sum(axis=1), 1.0)
+
     def test_calculate_popularity_prior(self, sample_dataset):
         """Test popularity prior calculation."""
         recommender = AllInOneRecommender(sample_dataset, random_seed=42)

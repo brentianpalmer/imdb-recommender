@@ -26,10 +26,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 from .recommender_base import RecommenderAlgo
@@ -440,16 +442,34 @@ class AllInOneRecommender(RecommenderAlgo):
         return X_pairs, y_pairs, weights
 
     def train_preference_model(
-        self, X_pairs: np.ndarray, y_pairs: np.ndarray, sample_weight: np.ndarray | None = None
+        self,
+        X_pairs: np.ndarray,
+        y_pairs: np.ndarray,
+        sample_weight: np.ndarray | None = None,
+        C: float | None = None,
+        alpha: float | None = None,
+        calibration: str = "sigmoid",
+        max_iter: int = 1000,
     ):
         """
         Stage 3: Preference Modeling
 
-        Train a model to predict P(like|exposed) using pairwise preference data.
+        Train a calibrated linear model to predict P(like|exposed) using
+        pairwise preference data.
+
+        The model is implemented as a ``Pipeline`` consisting of a
+        ``StandardScaler`` and ``SGDClassifier`` (logistic loss). The classifier
+        is wrapped in ``CalibratedClassifierCV`` to provide reliable
+        probabilities via Platt scaling (``sigmoid``) or isotonic regression.
 
         Args:
             X_pairs: Feature differences for pairs
-            y_pairs: Preference targets (always 1 in our setup)
+            y_pairs: Preference targets (1 if first item preferred)
+            sample_weight: Optional importance weights for each pair
+            C: Inverse regularization strength (if provided, overrides ``alpha``)
+            alpha: Regularization strength for SGDClassifier
+            calibration: 'sigmoid' (Platt scaling) or 'isotonic'
+            max_iter: Maximum iterations/epochs for SGD training
         """
         print("❤️ Stage 3: Training preference model...")
 
@@ -459,17 +479,38 @@ class AllInOneRecommender(RecommenderAlgo):
             self.preference_model = None
             return
 
-        # Train logistic regression on feature differences
-        self.preference_model = LogisticRegression(
+        # Derive alpha from C if provided
+        if alpha is None:
+            if C is not None and C != 0:
+                alpha = 1.0 / C
+            else:
+                alpha = 0.0001
+
+        # Base linear classifier with shuffling each epoch
+        base_clf = SGDClassifier(
+            loss="log_loss",
             random_state=self.random_seed,
-            max_iter=1000,
-            C=1000,  # Less regularization for small datasets
-            class_weight="balanced",  # Handle any class imbalance
+            max_iter=max_iter,
+            alpha=alpha,
+            shuffle=True,
+            class_weight="balanced",
         )
 
-        # Add some regularization for stability
+        pipeline = Pipeline([("scaler", StandardScaler()), ("clf", base_clf)])
+
         try:
-            self.preference_model.fit(X_pairs, y_pairs, sample_weight=sample_weight)
+            if sample_weight is not None:
+                pipeline.fit(X_pairs, y_pairs, clf__sample_weight=sample_weight)
+            else:
+                pipeline.fit(X_pairs, y_pairs)
+
+            self.preference_model = CalibratedClassifierCV(
+                estimator=pipeline, method=calibration, cv="prefit"
+            )
+            if sample_weight is not None:
+                self.preference_model.fit(X_pairs, y_pairs, sample_weight=sample_weight)
+            else:
+                self.preference_model.fit(X_pairs, y_pairs)
             print(
                 "✅ Preference model trained on "
                 f"{len(X_pairs)} pairs (classes: {len(set(y_pairs))})"
