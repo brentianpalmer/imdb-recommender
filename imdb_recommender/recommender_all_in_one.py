@@ -317,28 +317,36 @@ class AllInOneRecommender(RecommenderAlgo):
         return exposure_probs
 
     def build_pairwise_data(
-        self, features_df: pd.DataFrame, feature_matrix: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self,
+        features_df: pd.DataFrame,
+        feature_matrix: np.ndarray,
+        min_gap: int = 2,
+        hard_negative: bool = False,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Build pairwise training data for preference learning.
 
         For each pair of rated items A, B:
-        - If rating(A) >= rating(B) + 2, then A ≻ B (preference for A)
+        - If rating(A) >= rating(B) + ``min_gap`` then A ≻ B (preference for A)
         - Use feature differences: X_diff = X_A - X_B
         - Target: 1 if A preferred, 0 if B preferred
+        - Optionally sample "hard negatives" for highly rated items
 
         Args:
             features_df: Feature DataFrame
             feature_matrix: Numerical feature matrix
+            min_gap: Minimum rating difference to create a pair
+            hard_negative: Whether to add feature-similar but lower-rated items
 
         Returns:
-            Tuple of (feature_differences, preference_targets)
+            Tuple of (feature_differences, preference_targets, sample_weights)
         """
         print("👥 Building pairwise preference data...")
 
         if len(self.ratings) == 0:
             print("⚠️ No ratings available for preference learning")
-            return np.array([]).reshape(0, feature_matrix.shape[1]), np.array([])
+            empty = np.array([]).reshape(0, feature_matrix.shape[1])
+            return empty, np.array([]), np.array([])
 
         # Get ratings with feature indices
         ratings_with_idx = []
@@ -352,16 +360,19 @@ class AllInOneRecommender(RecommenderAlgo):
 
         if len(ratings_with_idx) < 2:
             print("⚠️ Not enough rated items for pairwise learning")
-            return np.array([]).reshape(0, feature_matrix.shape[1]), np.array([])
+            empty = np.array([]).reshape(0, feature_matrix.shape[1])
+            return empty, np.array([]), np.array([])
 
         # Build pairwise comparisons
-        X_pairs = []
-        y_pairs = []
+        X_pairs: List[np.ndarray] = []
+        y_pairs: List[int] = []
+        weights: List[float] = []
 
         for i, (idx_a, rating_a, const_a) in enumerate(ratings_with_idx):
             for j, (idx_b, rating_b, const_b) in enumerate(ratings_with_idx[i + 1 :], i + 1):
-                # Only create pair if ratings differ by at least 2
-                if abs(rating_a - rating_b) >= 2:
+                # Only create pair if ratings differ by at least min_gap
+                gap = abs(rating_a - rating_b)
+                if gap >= min_gap:
                     if rating_a > rating_b:
                         # A preferred over B: (X_a - X_b, y=1) and (X_b - X_a, y=0)
                         feat_diff_ab = feature_matrix[idx_a] - feature_matrix[idx_b]
@@ -369,8 +380,10 @@ class AllInOneRecommender(RecommenderAlgo):
 
                         X_pairs.append(feat_diff_ab)
                         y_pairs.append(1)
+                        weights.append(gap)
                         X_pairs.append(feat_diff_ba)
                         y_pairs.append(0)
+                        weights.append(gap)
                     else:
                         # B preferred over A: (X_b - X_a, y=1) and (X_a - X_b, y=0)
                         feat_diff_ba = feature_matrix[idx_b] - feature_matrix[idx_a]
@@ -378,20 +391,64 @@ class AllInOneRecommender(RecommenderAlgo):
 
                         X_pairs.append(feat_diff_ba)
                         y_pairs.append(1)
+                        weights.append(gap)
                         X_pairs.append(feat_diff_ab)
                         y_pairs.append(0)
+                        weights.append(gap)
+
+        # === Hard Negative Sampling ===
+        if hard_negative:
+            from sklearn.metrics.pairwise import cosine_distances
+
+            high_items = [r for r in ratings_with_idx if r[1] >= 8]
+            for idx_a, rating_a, _ in high_items:
+                candidates = [
+                    (idx_b, rating_b)
+                    for idx_b, rating_b, _ in ratings_with_idx
+                    if rating_b < rating_a and abs(rating_a - rating_b) < min_gap
+                ]
+                if not candidates:
+                    continue
+                cand_indices = [c[0] for c in candidates]
+                cand_vecs = feature_matrix[cand_indices]
+                distances = cosine_distances(
+                    feature_matrix[idx_a].reshape(1, -1), cand_vecs
+                ).flatten()
+                chosen_idx = cand_indices[int(np.argmin(distances))]
+                chosen_rating = [c[1] for c in candidates][int(np.argmin(distances))]
+                gap = abs(rating_a - chosen_rating)
+                feat_diff_ab = feature_matrix[idx_a] - feature_matrix[chosen_idx]
+                feat_diff_ba = feature_matrix[chosen_idx] - feature_matrix[idx_a]
+                X_pairs.append(feat_diff_ab)
+                y_pairs.append(1)
+                weights.append(gap)
+                X_pairs.append(feat_diff_ba)
+                y_pairs.append(0)
+                weights.append(gap)
 
         if len(X_pairs) == 0:
-            print("⚠️ No valid pairwise comparisons found (need rating differences >= 2)")
-            return np.array([]).reshape(0, feature_matrix.shape[1]), np.array([])
+            print(
+                f"⚠️ No valid pairwise comparisons found (need rating differences >= {min_gap})"
+            )
+            empty = np.array([]).reshape(0, feature_matrix.shape[1])
+            return empty, np.array([]), np.array([])
 
         X_pairs = np.array(X_pairs)
         y_pairs = np.array(y_pairs)
+        weights = np.array(weights)
+
+        # Shuffle pairs
+        perm = np.random.permutation(len(X_pairs))
+        X_pairs = X_pairs[perm]
+        y_pairs = y_pairs[perm]
+        weights = weights[perm]
 
         print(f"✅ Built {len(X_pairs)} pairwise comparisons")
-        return X_pairs, y_pairs
+        return X_pairs, y_pairs, weights
 
-    def train_preference_model(self, X_pairs: np.ndarray, y_pairs: np.ndarray):
+    def train_preference_model(
+        self, X_pairs: np.ndarray, y_pairs: np.ndarray, sample_weight: Optional[np.ndarray] = None
+    ):
         """
         Stage 3: Preference Modeling
 
@@ -419,7 +476,7 @@ class AllInOneRecommender(RecommenderAlgo):
 
         # Add some regularization for stability
         try:
-            self.preference_model.fit(X_pairs, y_pairs)
+            self.preference_model.fit(X_pairs, y_pairs, sample_weight=sample_weight)
             print(
                 f"✅ Preference model trained on {len(X_pairs)} pairs (classes: {len(set(y_pairs))})"
             )
@@ -708,8 +765,10 @@ class AllInOneRecommender(RecommenderAlgo):
         exposure_probs = self.train_exposure_model(features_df, feature_matrix)
 
         # === Stage 3: Preference Modeling ===
-        X_pairs, y_pairs = self.build_pairwise_data(features_df, feature_matrix)
-        self.train_preference_model(X_pairs, y_pairs)
+        X_pairs, y_pairs, pair_weights = self.build_pairwise_data(
+            features_df, feature_matrix
+        )
+        self.train_preference_model(X_pairs, y_pairs, sample_weight=pair_weights)
 
         # Calculate scores
         personal_scores = self.calculate_personal_scores(feature_matrix, exposure_probs)

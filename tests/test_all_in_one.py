@@ -146,17 +146,38 @@ class TestAllInOneRecommender:
         features_df = recommender.build_features()
         feature_matrix = recommender.build_feature_matrix(features_df)
 
-        X_pairs, y_pairs = recommender.build_pairwise_data(features_df, feature_matrix)
+        X_pairs, y_pairs, weights = recommender.build_pairwise_data(
+            features_df, feature_matrix
+        )
 
         # Check that pairwise data has correct structure
         if len(X_pairs) > 0:
             assert X_pairs.shape[0] == len(y_pairs)
             assert X_pairs.shape[1] == feature_matrix.shape[1]
+            assert len(weights) == len(y_pairs)
             # Should have both positive and negative examples (y=1 and y=0)
             unique_labels = set(y_pairs)
             assert 1 in unique_labels  # Should have positive examples
             assert 0 in unique_labels  # Should have negative examples
             assert len(unique_labels) == 2  # Should have exactly 2 classes
+
+        # Non-default min_gap should reduce pair count
+        X_gap, y_gap, w_gap = recommender.build_pairwise_data(
+            features_df, feature_matrix, min_gap=3
+        )
+        assert len(X_gap) <= len(X_pairs)
+
+        # Hard negative path produces pairs even with large min_gap
+        X_none, y_none, w_none = recommender.build_pairwise_data(
+            features_df, feature_matrix, min_gap=5
+        )
+        assert len(X_none) == 0
+
+        X_hard, y_hard, w_hard = recommender.build_pairwise_data(
+            features_df, feature_matrix, min_gap=5, hard_negative=True
+        )
+        assert len(X_hard) > 0
+        assert len(w_hard) == len(y_hard)
 
     def test_calculate_popularity_prior(self, sample_dataset):
         """Test popularity prior calculation."""
