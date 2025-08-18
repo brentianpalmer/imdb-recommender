@@ -47,17 +47,24 @@ Applies Maximal Marginal Relevance (MMR) re-ranking:
 
 ## Final Scoring
 
-The final recommendation score blends personal and popularity components:
+The final recommendation score blends personal and popularity components using z-score normalization to prevent any single component from dominating:
 
+```python
+Personal_z = (Personal - μ_personal) / (σ_personal + 1e-8)
+Popularity_z = (Popularity - μ_popularity) / (σ_popularity + 1e-8)  
+
+Final Score = 0.7 × Personal_z + 0.3 × Popularity_z
 ```
-Final Score = 0.7 × Personal + 0.3 × Popularity
-```
+
+This ensures both personal preferences and popularity signals contribute meaningfully to the final ranking, regardless of their original scale differences.
 
 Where popularity is calculated as:
-```
+
+```python
 Popularity = IMDb_rating × log(1+votes) × exp(-λ×age)
 ```
-Then z-score normalized.
+
+Then z-score normalized as described above.
 
 ## Usage
 

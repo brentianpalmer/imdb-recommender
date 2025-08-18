@@ -809,9 +809,23 @@ class AllInOneRecommender(RecommenderAlgo):
         personal_scores = self.calculate_personal_scores(feature_matrix, exposure_probs)
         popularity_scores = self.calculate_popularity_prior(features_df)
 
-        # === Final Blended Score ===
-        final_scores = (
-            self.personal_weight * personal_scores + self.popularity_weight * popularity_scores
+        # === Final Blended Score with Z-Score Normalization ===
+        # Normalize personal scores to z-scores
+        personal_mean = np.mean(personal_scores)
+        personal_std = np.std(personal_scores)
+        personal_z = (personal_scores - personal_mean) / (personal_std + 1e-8)
+
+        # Normalize popularity scores to z-scores
+        pop_mean = np.mean(popularity_scores)
+        pop_std = np.std(popularity_scores)
+        pop_z = (popularity_scores - pop_mean) / (pop_std + 1e-8)
+
+        # Blend normalized scores
+        final_scores = self.personal_weight * personal_z + self.popularity_weight * pop_z
+
+        print(
+            f"📊 Score normalization: personal μ={personal_mean:.3f} σ={personal_std:.3f}, "
+            f"popularity μ={pop_mean:.3f} σ={pop_std:.3f}"
         )
 
         # === Stage 4: Diversity Optimization ===
@@ -1107,7 +1121,7 @@ class AllInOneRecommender(RecommenderAlgo):
                 "runtime": item.get("runtime_(mins)", "Unknown"),
                 "score_personal": personal_score,
                 "score_pop": popularity_score,
-                "score_final": score,
+                "score_final": score,  # Z-score normalized final blend
             }
 
             recommendations.append(rec)
