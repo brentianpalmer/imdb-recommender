@@ -52,13 +52,13 @@ class AllInOneRecommender(RecommenderAlgo):
 
     Stage 2: Exposure Modeling
     - Predicts P(exposed) - likelihood user has seen the movie
-    - Uses logistic regression on content + popularity features
+    - Uses SGD classifier with logistic loss on content + popularity features
     - Handles selection bias in user's data
 
     Stage 3: Preference Modeling
     - Predicts P(like|exposed) using pairwise learning
     - Learns from rating differences (A > B if rating_A >= rating_B + 2)
-    - Uses feature differences for robust preference learning
+    - Uses calibrated SGD classifier with feature differences for robust preference learning
 
     Stage 4: Diversity Optimization
     - Projects items into latent space using SVD
