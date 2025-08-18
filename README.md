@@ -18,17 +18,29 @@ This project creates a sophisticated recommendation engine that:
 ### Recommendation Algorithms
 
 1. **All-in-One Four-Stage Recommender** (`AllInOneRecommender`): Advanced ML-based system with:
-   - Exposure bias modeling
-   - Pairwise preference learning
-   - MMR diversity optimization
-   - Temporal split evaluation
-   - **Recommended for most users**
+   - **Exposure bias modeling**: Accounts for what you're likely to have seen
+   - **Pairwise preference learning**: Learns from rating comparisons
+   - **Candidate restriction**: Realistic recommendation pools instead of full catalog
+   - **Z-score normalization**: Prevents popularity bias in final scoring
+   - **MMR diversity optimization**: Ensures diverse recommendations
+   - **Temporal split evaluation**: Robust model validation
+   - **Content type filtering**: Movies, TV Series, Mini Series, etc.
+   - **Watchlist-specific recommendations**: Focus on your saved items
+   - **⭐ Recommended for most users**
 
 2. **Popularity-based Recommender** (`PopSimRecommender`): Uses content similarity and global popularity scores
 
 3. **SVD Matrix Factorization** (`SVDAutoRecommender`): Employs collaborative filtering with latent factors
 
 4. **Blended Approach**: Combines multiple algorithms for better recommendations
+
+### Smart Filtering & Personalization
+
+- **Content Type Filtering**: Focus on Movies, TV Series, TV Mini Series, or any specific content type
+- **Watchlist Recommendations**: Get recommendations specifically from your unrated watchlist items
+- **Candidate Restriction**: Realistic recommendation pools (500-1000 items) instead of full catalog evaluation
+- **Z-Score Normalization**: Balanced scoring that prevents popularity from dominating personal preferences
+- **Exposure Modeling**: Accounts for what content you've likely been exposed to
 
 ### Content Analysis
 
@@ -100,45 +112,97 @@ topk = 25
 
 ### Command Line Interface
 
-The main CLI command is `imdbrec` with several subcommands:
+The main CLI command is `python -m imdb_recommender.cli` with several subcommands:
 
 #### 1. Data Ingestion
 
 Process your IMDb exports:
 
 ```bash
-imdbrec ingest --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx
+python -m imdb_recommender.cli ingest --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx
 ```
 
-#### 2. Generate Recommendations
-
-##### All-in-One Four-Stage Recommender (Recommended)
+#### 2. All-in-One Four-Stage Recommender (⭐ Recommended)
 
 The most advanced recommendation system with machine learning:
 
+##### Basic Usage
+
 ```bash
-# Basic usage
-imdbrec all-in-one --config config.toml --topk 25
+# Basic recommendations using config
+python -m imdb_recommender.cli all-in-one --config config.toml --topk 25
 
-# With evaluation and export
-imdbrec all-in-one --config config.toml --topk 50 --evaluate --export-csv recommendations.csv
-
-# Advanced options
-imdbrec all-in-one --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx --topk 25 --user-weight 0.8 --global-weight 0.2 --save-model model.pkl
+# Direct parameters
+python -m imdb_recommender.cli all-in-one --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx --topk 25
 ```
+
+##### Content Type Filtering 🎬
+
+Get recommendations for specific content types:
+
+```bash
+# Movies only
+python -m imdb_recommender.cli all-in-one --config config.toml --content-type "Movie" --topk 10
+
+# TV Series only
+python -m imdb_recommender.cli all-in-one --config config.toml --content-type "TV Series" --topk 10
+
+# TV Mini Series only
+python -m imdb_recommender.cli all-in-one --config config.toml --content-type "TV Mini Series" --topk 5
+```
+
+Available content types: `Movie`, `TV Series`, `TV Mini Series`, `TV Special`, `TV Movie`, `Video`, `Short`, `TV Episode`, `Music Video`
+
+##### Watchlist-Specific Recommendations 🎯
+
+Get recommendations from your unrated watchlist items:
+
+```bash
+# All unrated watchlist items
+python -m imdb_recommender.cli all-in-one --config config.toml --watchlist-only --topk 10
+
+# Movies from your watchlist only
+python -m imdb_recommender.cli all-in-one --config config.toml --watchlist-only --content-type "Movie" --topk 10
+
+# TV Series from your watchlist only
+python -m imdb_recommender.cli all-in-one --config config.toml --watchlist-only --content-type "TV Series" --topk 5
+```
+
+##### Advanced Options
+
+```bash
+# With evaluation and model export
+python -m imdb_recommender.cli all-in-one --config config.toml --topk 50 --evaluate --export-csv recommendations.csv --save-model model.pkl
+
+# Custom weights and candidate pool size
+python -m imdb_recommender.cli all-in-one --config config.toml --user-weight 0.8 --global-weight 0.2 --candidates 1000
+```
+
+**Parameters:**
+
+- `--topk`: Number of recommendations to return (default: 25)
+- `--user-weight`: Weight for personal preferences (default: 0.7)
+- `--global-weight`: Weight for popularity (default: 0.3)
+- `--exclude-rated`: Exclude already-rated items (default: true)
+- `--watchlist-only`: Only recommend from unrated watchlist items
+- `--content-type`: Filter by content type (Movie, TV Series, etc.)
+- `--candidates`: Size of candidate pool for non-watchlist mode (default: 500)
+- `--save-model`: Path to save trained model
+- `--export-csv`: Path to export recommendations CSV
+- `--evaluate`: Run evaluation with temporal split
 
 See [All-in-One Guide](docs/ALL_IN_ONE_GUIDE.md) for detailed documentation.
 
-##### Traditional Blended Recommender
+#### 3. Traditional Blended Recommender
 
 Get personalized movie recommendations using the original system:
 
 ```bash
 # Using config file
-imdbrec recommend --config config.toml --seeds tt0480249 --topk 25
+python -m imdb_recommender.cli recommend --config config.toml --seeds tt0480249 --topk 25
 
 # Direct parameters
-imdbrec recommend --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx --seeds tt0480249 --topk 25 --user-weight 0.7 --global-weight 0.3 --recency 0.5
+python -m imdb_recommender.cli recommend --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx --seeds tt0480249 --topk 25 --user-weight 0.7 --global-weight 0.3 --recency 0.5
 ```
 
 **Parameters:**
@@ -150,45 +214,76 @@ imdbrec recommend --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.
 - `--recency`: Bias toward newer releases (default: 0.0)
 - `--exclude-rated`: Exclude already-rated items (default: true)
 
-#### 3. Rate Movies
+#### 4. Rate Movies
 
 Log new ratings:
 
 ```bash
-imdbrec rate tt1234567 8 --notes "Great cinematography"
+python -m imdb_recommender.cli rate tt1234567 8 --notes "Great cinematography"
 ```
 
-#### 4. Manage Watchlist
+#### 5. Manage Watchlist
 
 Add or remove items from watchlist:
 
 ```bash
-imdbrec watchlist add tt1234567
-imdbrec watchlist remove tt1234567
+python -m imdb_recommender.cli watchlist add tt1234567
+python -m imdb_recommender.cli watchlist remove tt1234567
 ```
 
-#### 5. Quick Review
+#### 6. Quick Review
 
 Rate and/or add to watchlist in one command:
 
 ```bash
-imdbrec quick-review tt1234567 --rating 9 --watchlist add --notes "Must watch again"
+python -m imdb_recommender.cli quick-review tt1234567 --rating 9 --watchlist add --notes "Must watch again"
 ```
 
-#### 6. Export Logs
+#### 7. Export Logs
 
 Export your rating/watchlist actions:
 
 ```bash
-imdbrec export-log --out data/my_actions.csv
+python -m imdb_recommender.cli export-log --out data/my_actions.csv
 ```
 
-#### 7. Explain Recommendations
+#### 8. Explain Recommendations
 
 Get detailed explanation for why a specific movie was recommended:
 
 ```bash
-imdbrec explain tt1234567 --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx
+python -m imdb_recommender.cli explain tt1234567 --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx
+```
+
+## Recent Improvements 🚀
+
+### Advanced Filtering & Personalization
+
+- **🎬 Content Type Filtering**: Filter recommendations by Movies, TV Series, TV Mini Series, and more
+- **🎯 Watchlist-Specific Mode**: Get recommendations exclusively from your unrated watchlist items  
+- **🧠 Intelligent Candidate Building**: Realistic recommendation pools instead of evaluating entire catalog
+- **⚖️ Z-Score Normalization**: Balanced scoring prevents popularity bias from dominating personal preferences
+- **🔄 Candidate Restriction**: Smart 500-1000 item pools combining watchlist, popular, and neighbor items
+
+### Technical Enhancements
+
+- **Exposure Bias Modeling**: Accounts for content you've likely been exposed to
+- **Pairwise Preference Learning**: Learns from comparisons between your ratings  
+- **Temporal Split Evaluation**: Robust validation using time-based train/test splits
+- **Enhanced CLI**: Comprehensive command-line interface with helpful emoji indicators
+- **Comprehensive Testing**: 46 automated tests ensuring reliability
+
+### Example Workflows
+
+```bash
+# Get top movies from your watchlist you're most likely to rate highly
+python -m imdb_recommender.cli all-in-one --watchlist-only --content-type "Movie" --topk 10 --config config.toml
+
+# Find great TV series you haven't rated yet
+python -m imdb_recommender.cli all-in-one --content-type "TV Series" --topk 15 --config config.toml
+
+# Export your top movie recommendations to CSV for later
+python -m imdb_recommender.cli all-in-one --content-type "Movie" --export-csv my_movie_recs.csv --config config.toml
 ```
 
 ## How It Works
@@ -209,29 +304,45 @@ The system ingests your IMDb data and:
 - **Content Vectors**: Combined genre and temporal feature vectors
 - **Popularity Scores**: Normalized IMDb ratings with vote count bonuses
 
-### 3. Recommendation Generation
+### 3. All-in-One Four-Stage Recommendation Process
 
-The system uses two main approaches:
+The advanced recommendation system follows a sophisticated four-stage pipeline:
 
-#### Popularity-based Recommender
+#### Stage 1: Feature Engineering & Candidate Building
+- **Intelligent Candidate Selection**: Builds realistic candidate pools combining:
+  - Top unrated watchlist items (diverse content you've saved)  
+  - Globally popular high-quality items (broad appeal)
+  - Content-based neighbors (similar to your preferences)
+- **Multi-dimensional Features**: Genre vectors, temporal features, popularity metrics
+- **Content Type Filtering**: Focus on Movies, TV Series, or specific content types
 
+#### Stage 2: Exposure Modeling 🎯
+- **Exposure Probability Prediction**: Machine learning model predicts what content you've likely seen
+- **Calibrated Classification**: Accounts for exposure bias in recommendation scoring
+- **Training Features**: Genre overlap, popularity, release year, vote counts
+
+#### Stage 3: Preference Modeling ❤️
+- **Pairwise Learning**: Learns preferences from rating comparisons when possible
+- **Personal Score Prediction**: Estimates how much you'd like each candidate
+- **Fallback Strategy**: Uses exposure probabilities when insufficient rating data
+
+#### Stage 4: Final Scoring & Ranking 📊
+- **Z-Score Normalization**: Balances personal preferences with popularity
+- **Weighted Combination**: `final_score = user_weight * personal_z + global_weight * popularity_z`
+- **MMR Diversity**: Ensures diverse recommendations using Maximum Marginal Relevance
+- **Content Filtering**: Applies content type restrictions if specified
+
+#### Traditional Approaches (Also Available)
+
+**Popularity-based Recommender:**
 - Calculates content similarity between seed titles and candidates
 - Weights by user preference patterns and global popularity
 - Applies recency bias if specified
-- Generates explanations based on similarity factors
 
-#### SVD Matrix Factorization
-
+**SVD Matrix Factorization:**
 - Builds user-item matrix from ratings
 - Applies singular value decomposition with optimal component selection
 - Handles cold-start problems with global priors
-- Provides latent factor explanations
-
-#### Blending Strategy
-
-- Combines scores from multiple algorithms using weighted averaging
-- Ranks final recommendations by blended score, popularity, and recency
-- Filters out already-rated items if requested
 
 ### 4. Explainability
 

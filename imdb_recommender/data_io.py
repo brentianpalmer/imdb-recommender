@@ -30,7 +30,7 @@ class Dataset:
         r = self.ratings.set_index("imdb_const", drop=False)
         w = self.watchlist.set_index("imdb_const", drop=False)
         out = r.combine_first(w).reset_index(drop=True)
-        for col in ["title", "year", "genres", "imdb_rating", "num_votes"]:
+        for col in ["title", "year", "genres", "imdb_rating", "num_votes", "title_type"]:
             if col not in out.columns:
                 out[col] = np.nan
         return out
@@ -53,6 +53,7 @@ def load_ratings_csv(path: str) -> pd.DataFrame:
     genres_col = _pick(df, ["genres"])
     imdb_rating_col = _pick(df, ["imdb_rating", "average_rating"])
     votes_col = _pick(df, ["num_votes", "votes"])
+    title_type_col = _pick(df, ["title_type"])
     if not const_col or not yr_col:
         raise ValueError("Could not find required columns in ratings CSV")
     out = pd.DataFrame(
@@ -71,6 +72,7 @@ def load_ratings_csv(path: str) -> pd.DataFrame:
     out["num_votes"] = (
         pd.to_numeric(df[votes_col], errors="coerce").astype("Int64") if votes_col else None
     )
+    out["title_type"] = df[title_type_col].astype(str) if title_type_col else None
     out = out.dropna(subset=["imdb_const"])
     if "rated_at" in out.columns and out["rated_at"].notna().any():
         out = out.sort_values("rated_at").drop_duplicates("imdb_const", keep="last")
@@ -94,6 +96,7 @@ def load_watchlist(path: str) -> pd.DataFrame:
     genres_col = _pick(df, ["genres"])
     imdb_rating_col = _pick(df, ["imdb_rating", "average_rating"])
     votes_col = _pick(df, ["num_votes", "votes"])
+    title_type_col = _pick(df, ["title_type"])
     if not const_col:
         raise ValueError("Could not find 'const' column in watchlist")
     out = pd.DataFrame({"imdb_const": df[const_col].astype(str), "in_watchlist": True})
@@ -106,6 +109,7 @@ def load_watchlist(path: str) -> pd.DataFrame:
     out["num_votes"] = (
         pd.to_numeric(df[votes_col], errors="coerce").astype("Int64") if votes_col else None
     )
+    out["title_type"] = df[title_type_col].astype(str) if title_type_col else None
     out = out.dropna(subset=["imdb_const"]).drop_duplicates("imdb_const", keep="last")
     out["imdb_const"] = out["imdb_const"].astype(str)
     return out.reset_index(drop=True)

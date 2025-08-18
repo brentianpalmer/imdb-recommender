@@ -110,6 +110,13 @@ def all_in_one_recommend(
     user_weight: float = typer.Option(0.7, help="Weight for personal preferences"),
     global_weight: float = typer.Option(0.3, help="Weight for popularity"),
     exclude_rated: bool = typer.Option(True, help="Exclude already rated items"),
+    watchlist_only: bool = typer.Option(False, help="Only recommend from unrated watchlist items"),
+    content_type: str | None = typer.Option(
+        None, help="Filter by content type (Movie, TV Series, TV Mini Series, etc.)"
+    ),
+    candidates: int = typer.Option(
+        500, help="Size of candidate pool (ignored if --watchlist-only)"
+    ),
     save_model: str | None = typer.Option(None, help="Path to save trained model"),
     export_csv: str | None = typer.Option(None, help="Path to export recommendations CSV"),
     evaluate: bool = typer.Option(False, help="Run evaluation with temporal split"),
@@ -134,19 +141,85 @@ def all_in_one_recommend(
     # Initialize recommender
     recommender = AllInOneRecommender(res.dataset, random_seed=42)
 
+    # Determine candidates based on options
+    candidate_list = None
+    if watchlist_only:
+        # Get unrated watchlist items
+        rated_items = (
+            set(res.dataset.ratings["imdb_const"].values) if len(res.dataset.ratings) > 0 else set()
+        )
+        unrated_watchlist = [
+            item for item in res.dataset.watchlist["imdb_const"].tolist() if item not in rated_items
+        ]
+
+        if not unrated_watchlist:
+            typer.echo("🤷 No unrated items in your watchlist!")
+            raise typer.Exit(0)
+
+        candidate_list = unrated_watchlist
+        typer.echo(f"🎯 Analyzing {len(candidate_list)} unrated watchlist items...")
+    else:
+        # Use intelligent candidate building
+        candidate_list = recommender.build_candidates(max_candidates=candidates)
+        typer.echo(f"🧠 Built intelligent candidate pool of {len(candidate_list)} items")
+
+    # Apply content type filter if specified
+    if content_type:
+        catalog = res.dataset.catalog
+        if "title_type" not in catalog.columns:
+            typer.echo(
+                "⚠️ Content type filtering not available - title_type column missing", err=True
+            )
+        else:
+            # Validate content type
+            available_types = catalog["title_type"].value_counts()
+            if content_type not in available_types.index:
+                typer.echo(f"❌ Content type '{content_type}' not found.", err=True)
+                typer.echo(f"Available types: {', '.join(available_types.index.tolist())}")
+                raise typer.Exit(1)
+
+            # Filter candidates by content type
+            type_filtered_catalog = catalog[catalog["title_type"] == content_type]
+            original_count = len(candidate_list)
+            candidate_list = [
+                item
+                for item in candidate_list
+                if item in type_filtered_catalog["imdb_const"].values
+            ]
+
+            if not candidate_list:
+                typer.echo(f"❌ No {content_type} items found in candidate pool!")
+                raise typer.Exit(1)
+
+            typer.echo(
+                f"🎬 Filtered to {len(candidate_list)} {content_type} items "
+                f"(from {original_count} total)"
+            )
+
     # Generate recommendations
     scores, explanations = recommender.score(
         seeds=[],  # All-in-one doesn't use seeds
         user_weight=user_weight,
         global_weight=global_weight,
         exclude_rated=exclude_rated,
+        candidates=candidate_list,
     )
 
     # Get top recommendations
     sorted_recs = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:topk]
 
     # Display recommendations
-    typer.echo(f"\n📊 Top {len(sorted_recs)} Recommendations:")
+    header = ""
+    if watchlist_only and content_type:
+        header = f"🎯 Top {len(sorted_recs)} {content_type} Watchlist Recommendations:"
+    elif watchlist_only:
+        header = f"🎯 Top {len(sorted_recs)} Watchlist Recommendations:"
+    elif content_type:
+        header = f"🎬 Top {len(sorted_recs)} {content_type} Recommendations:"
+    else:
+        header = f"📊 Top {len(sorted_recs)} Recommendations:"
+
+    typer.echo(f"\n{header}")
     typer.echo("=" * 80)
 
     for i, (const, score) in enumerate(sorted_recs, 1):
@@ -203,3 +276,7 @@ def explain(ttid: str, ratings: str = typer.Option(...), watchlist: str = typer.
         seeds=[ttid], user_weight=0.7, global_weight=0.3, recency=0.5, exclude_rated=False
     )
     typer.echo(expl.get(ttid) or "blend of your taste and popularity")
+
+
+if __name__ == "__main__":
+    app()
