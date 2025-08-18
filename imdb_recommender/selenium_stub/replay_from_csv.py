@@ -1,11 +1,15 @@
 from __future__ import annotations
+
+import csv
+import os
+import time
+
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import csv, time, os
-from dotenv import load_dotenv
+from selenium.webdriver.support.ui import WebDriverWait
 
 # Load environment variables from .env file
 load_dotenv()
@@ -40,14 +44,14 @@ def login_imdb(driver):
 
         # Check for CAPTCHA/puzzle first
         try:
-            captcha_element = driver.find_element(
+            driver.find_element(
                 By.CSS_SELECTOR, "[data-cy='captcha'], .cvf-widget, #captchacharacters"
             )
             print("🧩 CAPTCHA/Puzzle detected!")
             print("Please solve the puzzle manually in the browser window.")
             print("Press Enter here after solving the puzzle to continue...")
             input()
-        except:
+        except Exception:
             print("No CAPTCHA detected, proceeding with login...")
 
         # Try multiple selectors for the email field
@@ -66,7 +70,7 @@ def login_imdb(driver):
                 )
                 print(f"Found email field using selector: {selector_type}='{selector_value}'")
                 break
-            except:
+            except Exception:
                 continue
 
         if not email_field:
@@ -102,7 +106,7 @@ def login_imdb(driver):
                 password_field = driver.find_element(selector_type, selector_value)
                 print(f"Found password field using selector: {selector_type}='{selector_value}'")
                 break
-            except:
+            except Exception:
                 continue
 
         if not password_field:
@@ -133,7 +137,7 @@ def login_imdb(driver):
                 sign_in_btn = driver.find_element(selector_type, selector_value)
                 print(f"Found sign in button using selector: {selector_type}='{selector_value}'")
                 break
-            except:
+            except Exception:
                 continue
 
         if not sign_in_btn:
@@ -172,7 +176,7 @@ def login_imdb(driver):
             driver.find_element(By.ID, "auth-signin-button").click()
             time.sleep(2)
             print("✅ 2FA code submitted")
-        except:
+        except Exception:
             print("ℹ️ No 2FA required")
 
         # Final verification - check if we're successfully logged in
@@ -191,12 +195,13 @@ def login_imdb(driver):
                         EC.presence_of_element_located(
                             (
                                 By.CSS_SELECTOR,
-                                "[data-testid='imdb-header-account-menu'], .navbar__user, #imdbHeader-account-menu",
+                                "[data-testid='imdb-header-account-menu'], "
+                                ".navbar__user, #imdbHeader-account-menu",
                             )
                         )
                     )
                     print("✅ User account menu found - login confirmed!")
-                except:
+                except Exception:
                     print("ℹ️ Account menu not found, but URL suggests login success")
 
                 return True
@@ -262,7 +267,10 @@ def main(csv_path: str):
 
     # Set a realistic user agent
     opts.add_argument(
-        "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "--user-agent="
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
     )
 
     # Comment out headless mode to see what's happening
@@ -290,7 +298,7 @@ def main(csv_path: str):
     )
     try:
         login_imdb(driver)
-        with open(csv_path, "r", encoding="utf-8") as f:
+        with open(csv_path, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 imdb_const = row["imdb_const"]

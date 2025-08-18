@@ -1,12 +1,12 @@
 """Performance and benchmarking tests for the IMDb Recommender package."""
 
-import pytest
-import time
 import tempfile
+import time
+
 from imdb_recommender.data_io import ingest_sources
+from imdb_recommender.ranker import Ranker
 from imdb_recommender.recommender_pop import PopSimRecommender
 from imdb_recommender.recommender_svd import SVDAutoRecommender
-from imdb_recommender.ranker import Ranker
 
 
 class TestPerformance:
@@ -72,7 +72,7 @@ class TestPerformance:
         assert len(recs) <= 10
         assert all(rec.score > 0 for rec in recs)
 
-        print(f"Performance results:")
+        print("Performance results:")
         print(f"  PopSim: {pop_time:.3f}s")
         print(f"  SVD: {svd_time:.3f}s")
         print(f"  Blending: {blend_time:.3f}s")

@@ -19,25 +19,20 @@ Date: August 2025
 
 from __future__ import annotations
 
-import json
 import pickle
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression, SGDClassifier
-from sklearn.metrics import ndcg_score
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.utils.class_weight import compute_class_weight
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 from .recommender_base import RecommenderAlgo
-from .schemas import Recommendation
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -288,7 +283,7 @@ class AllInOneRecommender(RecommenderAlgo):
 
         # Scale features
         self.feature_scaler = StandardScaler()
-        X_scaled = self.feature_scaler.fit_transform(feature_matrix)
+        self.feature_scaler.fit(feature_matrix)
 
         # Use a heuristic exposure probability based on popularity and recency
         # Higher popularity + more recent = higher exposure probability
@@ -322,7 +317,7 @@ class AllInOneRecommender(RecommenderAlgo):
         feature_matrix: np.ndarray,
         min_gap: int = 2,
         hard_negative: bool = False,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Build pairwise training data for preference learning.
 
@@ -364,12 +359,12 @@ class AllInOneRecommender(RecommenderAlgo):
             return empty, np.array([]), np.array([])
 
         # Build pairwise comparisons
-        X_pairs: List[np.ndarray] = []
-        y_pairs: List[int] = []
-        weights: List[float] = []
+        X_pairs: list[np.ndarray] = []
+        y_pairs: list[int] = []
+        weights: list[float] = []
 
-        for i, (idx_a, rating_a, const_a) in enumerate(ratings_with_idx):
-            for j, (idx_b, rating_b, const_b) in enumerate(ratings_with_idx[i + 1 :], i + 1):
+        for i, (idx_a, rating_a, _const_a) in enumerate(ratings_with_idx):
+            for _j, (idx_b, rating_b, _const_b) in enumerate(ratings_with_idx[i + 1 :], i + 1):
                 # Only create pair if ratings differ by at least min_gap
                 gap = abs(rating_a - rating_b)
                 if gap >= min_gap:
@@ -427,9 +422,7 @@ class AllInOneRecommender(RecommenderAlgo):
                 weights.append(gap)
 
         if len(X_pairs) == 0:
-            print(
-                f"⚠️ No valid pairwise comparisons found (need rating differences >= {min_gap})"
-            )
+            print(f"⚠️ No valid pairwise comparisons found (need rating differences >= {min_gap})")
             empty = np.array([]).reshape(0, feature_matrix.shape[1])
             return empty, np.array([]), np.array([])
 
@@ -447,7 +440,7 @@ class AllInOneRecommender(RecommenderAlgo):
         return X_pairs, y_pairs, weights
 
     def train_preference_model(
-        self, X_pairs: np.ndarray, y_pairs: np.ndarray, sample_weight: Optional[np.ndarray] = None
+        self, X_pairs: np.ndarray, y_pairs: np.ndarray, sample_weight: np.ndarray | None = None
     ):
         """
         Stage 3: Preference Modeling
@@ -478,7 +471,8 @@ class AllInOneRecommender(RecommenderAlgo):
         try:
             self.preference_model.fit(X_pairs, y_pairs, sample_weight=sample_weight)
             print(
-                f"✅ Preference model trained on {len(X_pairs)} pairs (classes: {len(set(y_pairs))})"
+                "✅ Preference model trained on "
+                f"{len(X_pairs)} pairs (classes: {len(set(y_pairs))})"
             )
         except Exception as e:
             print(f"⚠️ Preference model training failed: {e}")
@@ -566,7 +560,9 @@ class AllInOneRecommender(RecommenderAlgo):
                     ]  # P(class=1)
 
                     print(
-                        f"✅ Using trained preference model (probs range: {preference_probs.min():.3f}-{preference_probs.max():.3f})"
+                        "✅ Using trained preference model "
+                        f"(probs range: {preference_probs.min():.3f}-"
+                        f"{preference_probs.max():.3f})"
                     )
                 else:
                     preference_probs = np.ones(len(exposure_probs)) * 0.5
@@ -600,7 +596,7 @@ class AllInOneRecommender(RecommenderAlgo):
 
         print(f"✅ Latent space: {self.latent_features.shape}")
 
-    def mmr_rerank(self, scores: np.ndarray, top_k: int = 50) -> List[int]:
+    def mmr_rerank(self, scores: np.ndarray, top_k: int = 50) -> list[int]:
         """
         Stage 4: Maximal Marginal Relevance (MMR) re-ranking for diversity.
 
@@ -668,7 +664,7 @@ class AllInOneRecommender(RecommenderAlgo):
         print(f"✅ MMR re-ranking complete: {len(selected)} items")
         return selected
 
-    def create_shelves(self, recommendations: List[Dict]) -> Dict[str, List[Dict]]:
+    def create_shelves(self, recommendations: list[dict]) -> dict[str, list[dict]]:
         """
         Organize recommendations into intuitive shelves/buckets.
 
@@ -731,12 +727,12 @@ class AllInOneRecommender(RecommenderAlgo):
 
     def score(
         self,
-        seeds: List[str],
+        seeds: list[str],
         user_weight: float = 0.7,
         global_weight: float = 0.3,
         recency_weight: float = 0.0,
         exclude_rated: bool = True,
-    ) -> Tuple[Dict[str, float], Dict[str, str]]:
+    ) -> tuple[dict[str, float], dict[str, str]]:
         """
         Generate recommendations using the four-stage process.
 
@@ -765,9 +761,7 @@ class AllInOneRecommender(RecommenderAlgo):
         exposure_probs = self.train_exposure_model(features_df, feature_matrix)
 
         # === Stage 3: Preference Modeling ===
-        X_pairs, y_pairs, pair_weights = self.build_pairwise_data(
-            features_df, feature_matrix
-        )
+        X_pairs, y_pairs, pair_weights = self.build_pairwise_data(features_df, feature_matrix)
         self.train_preference_model(X_pairs, y_pairs, sample_weight=pair_weights)
 
         # Calculate scores
@@ -828,7 +822,7 @@ class AllInOneRecommender(RecommenderAlgo):
         print(f"✅ Generated scores for {len(scores_dict)} items")
         return scores_dict, explanations_dict
 
-    def evaluate_temporal_split(self, test_size: float = 0.2) -> Dict[str, float]:
+    def evaluate_temporal_split(self, test_size: float = 0.2) -> dict[str, float]:
         """
         Evaluate the recommender using temporal split.
 
@@ -882,7 +876,6 @@ class AllInOneRecommender(RecommenderAlgo):
 
             # Get test item IDs and ratings
             test_items = test_ratings["imdb_const"].values
-            test_ratings_dict = dict(zip(test_ratings["imdb_const"], test_ratings["my_rating"]))
 
             # Filter scores to test items that have scores
             test_scores = {item: scores[item] for item in test_items if item in scores}
@@ -956,7 +949,7 @@ class AllInOneRecommender(RecommenderAlgo):
 
         return metrics
 
-    def save_model(self, filepath: Union[str, Path]):
+    def save_model(self, filepath: str | Path):
         """Save the trained model to disk."""
         model_data = {
             "exposure_model": self.exposure_model,
@@ -984,7 +977,7 @@ class AllInOneRecommender(RecommenderAlgo):
 
         print(f"💾 Model saved to {filepath}")
 
-    def load_model(self, filepath: Union[str, Path]):
+    def load_model(self, filepath: str | Path):
         """Load a trained model from disk."""
         with open(filepath, "rb") as f:
             model_data = pickle.load(f)
@@ -1012,7 +1005,7 @@ class AllInOneRecommender(RecommenderAlgo):
         print(f"📂 Model loaded from {filepath}")
 
     def export_recommendations_csv(
-        self, scores: Dict[str, float], filepath: Union[str, Path], top_k: int = 100
+        self, scores: dict[str, float], filepath: str | Path, top_k: int = 100
     ):
         """
         Export recommendations to CSV format.

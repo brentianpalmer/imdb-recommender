@@ -1,12 +1,11 @@
-
 from .config import AppConfig
-from .data_io import Dataset, IngestResult, ingest_sources
-from .recommender_base import RecommenderAlgo, Registry
+from .data_io import Dataset, ingest_sources
+from .logger import ActionLogger
+from .ranker import Ranker
+from .recommender_base import Registry
 from .recommender_pop import PopSimRecommender
 from .recommender_svd import SVDAutoRecommender
-from .ranker import Ranker
-from .logger import ActionLogger
-from .schemas import Recommendation, ActionLogRow
+
 
 class Recommender:
     def __init__(self, config: AppConfig, dataset: Dataset | None = None):
@@ -27,7 +26,16 @@ class Recommender:
         ).dataset
         return cls(config=config, dataset=ds)
 
-    def recommend(self, seeds=None, topk=25, user_weight=0.7, global_weight=0.3, recency=0.0, exclude_rated=True, algos=None):
+    def recommend(
+        self,
+        seeds=None,
+        topk=25,
+        user_weight=0.7,
+        global_weight=0.3,
+        recency=0.0,
+        exclude_rated=True,
+        algos=None,
+    ):
         assert self.dataset is not None, "Dataset not loaded. Run ingest or from_config."
         algos = algos or ["pop_sim", "svd_auto"]
         algo_scores, algo_explain = {}, {}
@@ -35,11 +43,18 @@ class Recommender:
             algo_cls = Registry.get(name)
             algo = algo_cls(self.dataset, random_seed=self.config.random_seed)
             scores, explain = algo.score(
-                seeds=seeds or [], user_weight=user_weight, global_weight=global_weight, recency=recency, exclude_rated=exclude_rated
+                seeds=seeds or [],
+                user_weight=user_weight,
+                global_weight=global_weight,
+                recency=recency,
+                exclude_rated=exclude_rated,
             )
-            algo_scores[name] = scores; algo_explain[name] = explain
+            algo_scores[name] = scores
+            algo_explain[name] = explain
         blended = self.ranker.blend(algo_scores)
-        return self.ranker.top_n(blended, self.dataset, topk=topk, explanations=algo_explain, exclude_rated=exclude_rated)
+        return self.ranker.top_n(
+            blended, self.dataset, topk=topk, explanations=algo_explain, exclude_rated=exclude_rated
+        )
 
     def rate(self, imdb_const: str, rating: int, notes: str | None = None, source: str = "api"):
         self.logger.log_rate(imdb_const=imdb_const, rating=rating, notes=notes, source=source)

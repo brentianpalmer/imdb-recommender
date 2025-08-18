@@ -13,15 +13,15 @@ Author: IMDb Recommender Team
 Date: August 2025
 """
 
-import pytest
+import tempfile
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import tempfile
-import shutil
+import pytest
 
+from imdb_recommender.data_io import Dataset
 from imdb_recommender.recommender_all_in_one import AllInOneRecommender
-from imdb_recommender.data_io import Dataset, load_ratings_csv, load_watchlist
 
 
 class TestAllInOneRecommender:
@@ -146,9 +146,7 @@ class TestAllInOneRecommender:
         features_df = recommender.build_features()
         feature_matrix = recommender.build_feature_matrix(features_df)
 
-        X_pairs, y_pairs, weights = recommender.build_pairwise_data(
-            features_df, feature_matrix
-        )
+        X_pairs, y_pairs, weights = recommender.build_pairwise_data(features_df, feature_matrix)
 
         # Check that pairwise data has correct structure
         if len(X_pairs) > 0:
@@ -240,7 +238,7 @@ class TestAllInOneRecommender:
 
         # Check that scores are reasonable
         for score in scores.values():
-            assert isinstance(score, (int, float))
+            assert isinstance(score, int | float)
             assert np.isfinite(score)
 
         # Check that explanations are strings
@@ -262,7 +260,7 @@ class TestAllInOneRecommender:
             expected_metrics = ["hits_at_10", "ndcg_at_10", "diversity"]
             for metric in expected_metrics:
                 if metric in metrics:
-                    assert isinstance(metrics[metric], (int, float))
+                    assert isinstance(metrics[metric], int | float)
                     assert np.isfinite(metrics[metric])
 
     def test_model_persistence(self, sample_dataset):
