@@ -1,19 +1,24 @@
-
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional
-import pandas as pd
-import numpy as np
 from pathlib import Path
 
-def _norm_cols(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy(); df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]; return df
+import numpy as np
+import pandas as pd
 
-def _pick(df: pd.DataFrame, names: list[str]) -> Optional[str]:
+
+def _norm_cols(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+    return df
+
+
+def _pick(df: pd.DataFrame, names: list[str]) -> str | None:
     for n in names:
         if n in df.columns:
             return n
     return None
+
 
 @dataclass
 class Dataset:
@@ -25,18 +30,21 @@ class Dataset:
         r = self.ratings.set_index("imdb_const", drop=False)
         w = self.watchlist.set_index("imdb_const", drop=False)
         out = r.combine_first(w).reset_index(drop=True)
-        for col in ["title","year","genres","imdb_rating","num_votes"]:
+        for col in ["title", "year", "genres", "imdb_rating", "num_votes"]:
             if col not in out.columns:
                 out[col] = np.nan
         return out
+
 
 @dataclass
 class IngestResult:
     dataset: Dataset
     warnings: list[str]
 
+
 def load_ratings_csv(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path, encoding="utf-8"); df = _norm_cols(df)
+    df = pd.read_csv(path, encoding="utf-8")
+    df = _norm_cols(df)
     const_col = _pick(df, ["const", "imdb_const", "title_id"])
     yr_col = _pick(df, ["your_rating", "my_rating"])
     date_col = _pick(df, ["date_rated", "created"])
@@ -47,23 +55,31 @@ def load_ratings_csv(path: str) -> pd.DataFrame:
     votes_col = _pick(df, ["num_votes", "votes"])
     if not const_col or not yr_col:
         raise ValueError("Could not find required columns in ratings CSV")
-    out = pd.DataFrame({
-        "imdb_const": df[const_col].astype(str),
-        "my_rating": df[yr_col].astype(float).round().astype("Int64"),
-    })
+    out = pd.DataFrame(
+        {
+            "imdb_const": df[const_col].astype(str),
+            "my_rating": df[yr_col].astype(float).round().astype("Int64"),
+        }
+    )
     out["rated_at"] = df[date_col].astype(str) if date_col else None
     out["title"] = df[title_col].astype(str) if title_col else None
     out["year"] = pd.to_numeric(df[year_col], errors="coerce").astype("Int64") if year_col else None
     out["genres"] = df[genres_col].astype(str) if genres_col else None
-    out["imdb_rating"] = pd.to_numeric(df[imdb_rating_col], errors="coerce") if imdb_rating_col else np.nan
-    out["num_votes"] = pd.to_numeric(df[votes_col], errors="coerce").astype("Int64") if votes_col else None
+    out["imdb_rating"] = (
+        pd.to_numeric(df[imdb_rating_col], errors="coerce") if imdb_rating_col else np.nan
+    )
+    out["num_votes"] = (
+        pd.to_numeric(df[votes_col], errors="coerce").astype("Int64") if votes_col else None
+    )
     out = out.dropna(subset=["imdb_const"])
     if "rated_at" in out.columns and out["rated_at"].notna().any():
         out = out.sort_values("rated_at").drop_duplicates("imdb_const", keep="last")
     else:
         out = out.drop_duplicates("imdb_const", keep="last")
-    out["imdb_const"] = out["imdb_const"].astype(str); out["my_rating"] = out["my_rating"].astype("Int64")
+    out["imdb_const"] = out["imdb_const"].astype(str)
+    out["my_rating"] = out["my_rating"].astype("Int64")
     return out.reset_index(drop=True)
+
 
 def load_watchlist(path: str) -> pd.DataFrame:
     p = Path(path)
@@ -84,14 +100,20 @@ def load_watchlist(path: str) -> pd.DataFrame:
     out["title"] = df[title_col].astype(str) if title_col else None
     out["year"] = pd.to_numeric(df[year_col], errors="coerce").astype("Int64") if year_col else None
     out["genres"] = df[genres_col].astype(str) if genres_col else None
-    out["imdb_rating"] = pd.to_numeric(df[imdb_rating_col], errors="coerce") if imdb_rating_col else np.nan
-    out["num_votes"] = pd.to_numeric(df[votes_col], errors="coerce").astype("Int64") if votes_col else None
+    out["imdb_rating"] = (
+        pd.to_numeric(df[imdb_rating_col], errors="coerce") if imdb_rating_col else np.nan
+    )
+    out["num_votes"] = (
+        pd.to_numeric(df[votes_col], errors="coerce").astype("Int64") if votes_col else None
+    )
     out = out.dropna(subset=["imdb_const"]).drop_duplicates("imdb_const", keep="last")
     out["imdb_const"] = out["imdb_const"].astype(str)
     return out.reset_index(drop=True)
 
+
 def ingest_sources(ratings_csv: str, watchlist_path: str, data_dir: str = "data") -> IngestResult:
-    r = load_ratings_csv(ratings_csv); w = load_watchlist(watchlist_path)
+    r = load_ratings_csv(ratings_csv)
+    w = load_watchlist(watchlist_path)
     warnings = []
     ds = Dataset(ratings=r, watchlist=w)
     Path(data_dir).mkdir(parents=True, exist_ok=True)

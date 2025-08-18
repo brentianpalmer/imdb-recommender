@@ -1,23 +1,25 @@
 """Comprehensive functionality tests for IMDb Recommender package."""
 
-import pytest
 import tempfile
-import pandas as pd
 from pathlib import Path
+
 import numpy as np
-from imdb_recommender.data_io import ingest_sources, Dataset
+import pandas as pd
+import pytest
+
+from imdb_recommender.config import AppConfig
+from imdb_recommender.data_io import Dataset, ingest_sources
 from imdb_recommender.features import (
-    genres_to_vec,
-    year_to_bucket,
     content_vector,
     cosine,
+    genres_to_vec,
     recency_weight,
+    year_to_bucket,
 )
+from imdb_recommender.logger import ActionLogger
+from imdb_recommender.ranker import Ranker
 from imdb_recommender.recommender_pop import PopSimRecommender
 from imdb_recommender.recommender_svd import SVDAutoRecommender
-from imdb_recommender.ranker import Ranker
-from imdb_recommender.config import AppConfig
-from imdb_recommender.logger import ActionLogger
 from imdb_recommender.schemas import Recommendation
 
 
@@ -341,8 +343,6 @@ class TestErrorHandling:
 
     def test_empty_data_handling(self):
         """Test handling of empty datasets."""
-        empty_df = pd.DataFrame()
-
         # Should handle empty dataframes gracefully
         try:
             # This should not crash

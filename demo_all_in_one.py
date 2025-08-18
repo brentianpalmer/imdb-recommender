@@ -21,9 +21,9 @@ from pathlib import Path
 # Add the package to the path for demo purposes
 sys.path.insert(0, str(Path(__file__).parent))
 
-from imdb_recommender.recommender_all_in_one import AllInOneRecommender
-from imdb_recommender.data_io import ingest_sources
 from imdb_recommender.config import AppConfig
+from imdb_recommender.data_io import ingest_sources
+from imdb_recommender.recommender_all_in_one import AllInOneRecommender
 
 
 def main():
@@ -40,7 +40,9 @@ def main():
         cfg = AppConfig.from_file("config.toml")
         res = ingest_sources(cfg.ratings_csv_path, cfg.watchlist_path, cfg.data_dir)
         print(
-            f"   ✅ Loaded {len(res.dataset.ratings)} ratings and {len(res.dataset.watchlist)} watchlist items"
+            "   ✅ Loaded "
+            f"{len(res.dataset.ratings)} ratings "
+            f"and {len(res.dataset.watchlist)} watchlist items"
         )
         print(f"   ✅ Total catalog: {len(res.dataset.catalog)} unique titles")
         print()
@@ -113,7 +115,9 @@ def main():
 
         if metrics:
             print(
-                f"   📈 Hits@10: {metrics.get('hits_at_10', 0):.4f} (fraction of test items in top-10)"
+                "   📈 Hits@10: "
+                f"{metrics.get('hits_at_10', 0):.4f} "
+                "(fraction of test items in top-10)"
             )
             print(f"   📈 NDCG@10: {metrics.get('ndcg_at_10', 0):.4f} (ranking quality score)")
             print(f"   📈 Diversity: {metrics.get('diversity', 0):.4f} (recommendation variety)")
@@ -126,10 +130,10 @@ def main():
     print("=" * 35)
 
     export_path = "all_in_one_demo_recommendations.csv"
-    recommendations = recommender.export_recommendations_csv(scores, export_path, top_k=25)
+    recommender.export_recommendations_csv(scores, export_path, top_k=25)
 
     print(f"   ✅ Exported top 25 recommendations to {export_path}")
-    print(f"   📋 Includes detailed scores: personal, popularity, final")
+    print("   📋 Includes detailed scores: personal, popularity, final")
     print()
 
     # Save the trained model
@@ -140,7 +144,7 @@ def main():
     recommender.save_model(model_path)
 
     print(f"   ✅ Model saved to {model_path}")
-    print(f"   🔧 Includes all trained components and hyperparameters")
+    print("   🔧 Includes all trained components and hyperparameters")
     print()
 
     # Show technical details

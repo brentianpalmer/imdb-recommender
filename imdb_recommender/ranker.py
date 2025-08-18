@@ -1,9 +1,10 @@
 from __future__ import annotations
-from typing import Optional
+
 import numpy as np
 import pandas as pd
-from .schemas import Recommendation
+
 from .data_io import Dataset
+from .schemas import Recommendation
 
 
 class Ranker:
@@ -22,7 +23,7 @@ class Ranker:
         blended: dict[str, float],
         dataset: Dataset,
         topk: int = 25,
-        explanations: Optional[dict[str, dict[str, str]]] = None,
+        explanations: dict[str, dict[str, str]] | None = None,
         exclude_rated: bool = True,
     ) -> list[Recommendation]:
         rated = set(dataset.ratings["imdb_const"].tolist()) if exclude_rated else set()

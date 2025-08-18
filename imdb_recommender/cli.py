@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 import typer
-from typing import Optional
+
 from .config import AppConfig
 from .data_io import ingest_sources
 from .logger import ActionLogger
+from .ranker import Ranker
+from .recommender_all_in_one import AllInOneRecommender
 from .recommender_pop import PopSimRecommender
 from .recommender_svd import SVDAutoRecommender
-from .recommender_all_in_one import AllInOneRecommender
-from .ranker import Ranker
 
 app = typer.Typer(help="IMDb Recommender CLI")
 
@@ -32,9 +33,9 @@ def recommend(
     global_weight: float = typer.Option(0.3),
     recency: float = typer.Option(0.0),
     exclude_rated: bool = typer.Option(True),
-    ratings: Optional[str] = typer.Option(None),
-    watchlist: Optional[str] = typer.Option(None),
-    config: Optional[str] = typer.Option(None),
+    ratings: str | None = typer.Option(None),
+    watchlist: str | None = typer.Option(None),
+    config: str | None = typer.Option(None),
 ):
     if config:
         cfg = AppConfig.from_file(config)
@@ -59,7 +60,8 @@ def recommend(
     )
     for r in recs:
         typer.echo(
-            f"{r.imdb_const}	{r.title or ''} ({r.year or ''})	score={r.score:.3f}	{r.why_explainer}"
+            f"{r.imdb_const}    {r.title or ''} ({r.year or ''})    "
+            f"score={r.score:.3f} {r.why_explainer}"
         )
 
 
@@ -67,7 +69,7 @@ def recommend(
 def rate(
     ttid: str,
     rating: int = typer.Argument(...),
-    notes: Optional[str] = typer.Option(None, "--notes"),
+    notes: str | None = typer.Option(None, "--notes"),
 ):
     logger = ActionLogger()
     logger.log_rate(imdb_const=ttid, rating=rating, notes=notes, source="cli")
@@ -87,9 +89,9 @@ def watchlist_cmd(action: str = typer.Argument(...), ttid: str = typer.Argument(
 @app.command("quick-review")
 def quick_review(
     ttid: str,
-    rating: Optional[int] = typer.Option(None, "--rating"),
-    wl: Optional[str] = typer.Option(None, "--watchlist"),
-    notes: Optional[str] = typer.Option(None, "--notes"),
+    rating: int | None = typer.Option(None, "--rating"),
+    wl: str | None = typer.Option(None, "--watchlist"),
+    notes: str | None = typer.Option(None, "--notes"),
 ):
     logger = ActionLogger()
     if rating is not None:
@@ -108,12 +110,12 @@ def all_in_one_recommend(
     user_weight: float = typer.Option(0.7, help="Weight for personal preferences"),
     global_weight: float = typer.Option(0.3, help="Weight for popularity"),
     exclude_rated: bool = typer.Option(True, help="Exclude already rated items"),
-    save_model: Optional[str] = typer.Option(None, help="Path to save trained model"),
-    export_csv: Optional[str] = typer.Option(None, help="Path to export recommendations CSV"),
+    save_model: str | None = typer.Option(None, help="Path to save trained model"),
+    export_csv: str | None = typer.Option(None, help="Path to export recommendations CSV"),
     evaluate: bool = typer.Option(False, help="Run evaluation with temporal split"),
-    ratings: Optional[str] = typer.Option(None, help="Ratings CSV path"),
-    watchlist: Optional[str] = typer.Option(None, help="Watchlist path"),
-    config: Optional[str] = typer.Option(None, help="Config file path"),
+    ratings: str | None = typer.Option(None, help="Ratings CSV path"),
+    watchlist: str | None = typer.Option(None, help="Watchlist path"),
+    config: str | None = typer.Option(None, help="Config file path"),
 ):
     """Run the All-in-One Four-Stage IMDb Recommender."""
 
@@ -163,7 +165,7 @@ def all_in_one_recommend(
 
     # Export CSV if requested
     if export_csv:
-        recommendations = recommender.export_recommendations_csv(scores, export_csv, topk)
+        recommender.export_recommendations_csv(scores, export_csv, topk)
         typer.echo(f"📝 Exported recommendations to {export_csv}")
 
     # Save model if requested

@@ -1,11 +1,10 @@
 """Tests for Selenium functionality and CSV replay system."""
 
-import pytest
-import tempfile
 import csv
 import os
+import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+
 from imdb_recommender.logger import ActionLogger
 
 
@@ -34,7 +33,7 @@ class TestSeleniumIntegration:
             assert os.path.exists(csv_path)
 
             # Read and validate CSV content
-            with open(csv_path, "r", encoding="utf-8") as f:
+            with open(csv_path, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 rows = list(reader)
 
@@ -77,7 +76,7 @@ class TestSeleniumIntegration:
             csv_path = str(logger.path)
 
             # Step 2: Verify CSV format is selenium-compatible
-            with open(csv_path, "r") as f:
+            with open(csv_path) as f:
                 reader = csv.DictReader(f)
                 rows = list(reader)
 
@@ -147,9 +146,8 @@ class TestSeleniumSetup:
             from selenium import webdriver
             from selenium.webdriver.chrome.options import Options
             from selenium.webdriver.common.by import By
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
 
+            _ = (webdriver, Options, By)
             selenium_available = True
         except ImportError:
             selenium_available = False
