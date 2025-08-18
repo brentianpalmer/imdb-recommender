@@ -85,12 +85,15 @@ class AllInOneRecommender(RecommenderAlgo):
         self.item_features = None
         self.latent_features = None
 
-        # Parameters
+        # Hyperparameters (can be overridden for tuning)
+        self.exposure_model_params = {"alpha": 0.001, "max_iter": 1000}
+        self.preference_model_params = {"alpha": 0.001, "max_iter": 1000}
         self.recency_lambda = 0.03  # Exponential decay for recency
         self.personal_weight = 0.7
         self.popularity_weight = 0.3
         self.mmr_lambda = 0.8  # MMR diversity parameter
         self.svd_components = 64
+        self.min_votes_threshold = 100
 
         # Evaluation metrics storage
         self.metrics = {}
@@ -479,12 +482,9 @@ class AllInOneRecommender(RecommenderAlgo):
             self.preference_model = None
             return
 
-        # Derive alpha from C if provided
-        if alpha is None:
-            if C is not None and C != 0:
-                alpha = 1.0 / C
-            else:
-                alpha = 0.0001
+        # Use hyperparameters instead of method parameters
+        alpha = self.preference_model_params.get("alpha", 0.0001)
+        max_iter = self.preference_model_params.get("max_iter", 1000)
 
         # Base linear classifier with shuffling each epoch
         base_clf = SGDClassifier(

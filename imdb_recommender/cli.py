@@ -4,6 +4,7 @@ import typer
 
 from .config import AppConfig
 from .data_io import ingest_sources
+from .hyperparameter_tuning import HyperparameterTuningPipeline
 from .logger import ActionLogger
 from .ranker import Ranker
 from .recommender_all_in_one import AllInOneRecommender
@@ -276,6 +277,97 @@ def explain(ttid: str, ratings: str = typer.Option(...), watchlist: str = typer.
         seeds=[ttid], user_weight=0.7, global_weight=0.3, recency=0.5, exclude_rated=False
     )
     typer.echo(expl.get(ttid) or "blend of your taste and popularity")
+
+
+@app.command("hyperparameter-tune")
+def hyperparameter_tune(
+    ratings: str | None = typer.Option(None, help="Ratings CSV path"),
+    watchlist: str | None = typer.Option(None, help="Watchlist path"),
+    config: str | None = typer.Option(None, help="Config file path"),
+    models: str = typer.Option(
+        "all", help="Models to tune: 'all', 'all-in-one', 'pop-sim', 'svd', or comma-separated list"
+    ),
+    test_size: float = typer.Option(0.2, help="Test set proportion (0.1-0.4)"),
+    cv_folds: int = typer.Option(3, help="Cross-validation folds (2-5)"),
+    random_state: int = typer.Option(42, help="Random seed for reproducibility"),
+):
+    """
+    Run comprehensive hyperparameter tuning for recommender systems.
+
+    This command performs stratified train/test splits on your ratings data,
+    runs cross-validation hyperparameter tuning, and evaluates models on
+    multiple metrics including RMSE, MAE, Precision@K, Recall@K, and NDCG@K.
+
+    The goal is to find models that can accurately predict your ratings and
+    provide high-quality recommendations.
+    """
+
+    # Validate parameters
+    if not (0.1 <= test_size <= 0.4):
+        typer.echo("❌ Test size must be between 0.1 and 0.4", err=True)
+        raise typer.Exit(1)
+
+    if not (2 <= cv_folds <= 5):
+        typer.echo("❌ CV folds must be between 2 and 5", err=True)
+        raise typer.Exit(1)
+
+    # Load data
+    if config:
+        cfg = AppConfig.from_file(config)
+        res = ingest_sources(cfg.ratings_csv_path, cfg.watchlist_path, cfg.data_dir)
+    else:
+        if not ratings or not watchlist:
+            typer.echo("❌ Provide --config or both --ratings and --watchlist", err=True)
+            raise typer.Exit(1)
+        res = ingest_sources(ratings_csv=ratings, watchlist_path=watchlist, data_dir="data")
+
+    # Check minimum data requirements
+    if len(res.dataset.ratings) < 50:
+        typer.echo("❌ Need at least 50 ratings for meaningful hyperparameter tuning", err=True)
+        raise typer.Exit(1)
+
+    # Parse models
+    if models.lower() == "all":
+        model_list = ["all-in-one", "pop-sim", "svd"]
+    else:
+        model_list = [m.strip() for m in models.split(",")]
+        valid_models = {"all-in-one", "pop-sim", "svd"}
+        invalid_models = set(model_list) - valid_models
+        if invalid_models:
+            typer.echo(f"❌ Invalid models: {invalid_models}. Valid: {valid_models}", err=True)
+            raise typer.Exit(1)
+
+    typer.echo("🚀 Starting hyperparameter tuning pipeline...")
+    typer.echo(
+        f"   Dataset: {len(res.dataset.ratings)} ratings, "
+        f"{len(res.dataset.watchlist)} watchlist items"
+    )
+    typer.echo(f"   Models: {model_list}")
+    typer.echo(f"   Test size: {test_size*100:.1f}%")
+    typer.echo(f"   CV folds: {cv_folds}")
+    typer.echo(f"   Random state: {random_state}")
+    typer.echo()
+
+    # Initialize tuning pipeline
+    tuner = HyperparameterTuningPipeline(
+        dataset=res.dataset, test_size=test_size, random_state=random_state
+    )
+
+    try:
+        # Run tuning
+        tuner.run_full_tuning(cv_folds=cv_folds, models=model_list)
+
+        typer.echo("🎉 Hyperparameter tuning completed successfully!")
+        typer.echo("💾 Results saved to: hyperparameter_results/")
+        typer.echo()
+        typer.echo("📋 Next Steps:")
+        typer.echo("   1. Review the results in the hyperparameter_results/ directory")
+        typer.echo("   2. Use the best parameters in your recommendation commands")
+        typer.echo("   3. Apply the tuned models to your watchlist for recommendations")
+
+    except Exception as e:
+        typer.echo(f"❌ Hyperparameter tuning failed: {e}", err=True)
+        raise typer.Exit(1) from e
 
 
 if __name__ == "__main__":

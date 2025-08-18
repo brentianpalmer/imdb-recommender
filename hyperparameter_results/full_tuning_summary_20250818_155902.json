@@ -1,0 +1,36 @@
+{
+  "timestamp": "20250818_155902",
+  "dataset_info": {
+    "total_ratings": 544,
+    "train_ratings": 380,
+    "test_ratings": 164,
+    "test_size": 0.3,
+    "random_state": 42
+  },
+  "results": {
+    "pop-sim": {
+      "best_params": {
+        "global_weight": 0.5,
+        "rating_threshold": 7,
+        "recency": 0.0,
+        "user_weight": 0.9
+      },
+      "best_score": -2.772478024582326,
+      "metrics": {
+        "rmse": 2.772478024582326,
+        "mae": 2.333049521609935,
+        "r2_score": -3.8041464979949478,
+        "precision_at_5": 0.8,
+        "precision_at_10": 0.8,
+        "recall_at_5": 0.031496062992125984,
+        "recall_at_10": 0.031496062992125984,
+        "ndcg_at_5": 0.8539316501572937,
+        "ndcg_at_10": 0.5541432109622958,
+        "catalog_coverage": 0.004690431519699813,
+        "diversity_score": 0.4074074074074074
+      },
+      "training_time": 16.50831627845764,
+      "prediction_time": 0.039794206619262695
+    }
+  }
+}

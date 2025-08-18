@@ -26,6 +26,7 @@ This project creates a sophisticated recommendation engine that:
    - **Temporal split evaluation**: Robust model validation
    - **Content type filtering**: Movies, TV Series, Mini Series, etc.
    - **Watchlist-specific recommendations**: Focus on your saved items
+   - **Hyperparameter optimization**: Automated model tuning with cross-validation
    - **⭐ Recommended for most users**
 
 2. **Popularity-based Recommender** (`PopSimRecommender`): Uses content similarity and global popularity scores
@@ -247,7 +248,70 @@ Export your rating/watchlist actions:
 python -m imdb_recommender.cli export-log --out data/my_actions.csv
 ```
 
-#### 8. Explain Recommendations
+#### 8. Hyperparameter Tuning 🔬
+
+Optimize your recommendation models using stratified train/test splits and cross-validation:
+
+```bash
+# Tune all models with default settings
+python -m imdb_recommender.cli hyperparameter-tune --config config.toml --models all
+
+# Tune specific models with custom settings
+python -m imdb_recommender.cli hyperparameter-tune --config config.toml --models pop-sim,svd --cv-folds 5 --test-size 0.2
+
+# Quick tuning for faster results
+python -m imdb_recommender.cli hyperparameter-tune --config config.toml --models all-in-one --cv-folds 3 --test-size 0.3 --quick
+
+# Advanced tuning with full parameter grids
+python -m imdb_recommender.cli hyperparameter-tune --config config.toml --models all --cv-folds 5 --test-size 0.2 --scoring rmse --random-state 123
+```
+
+**Parameters:**
+
+- `--models`: Models to tune (`all-in-one`, `pop-sim`, `svd`, `all`) - default: `all`
+- `--cv-folds`: Number of cross-validation folds - default: 3
+- `--test-size`: Fraction of data for final test set (0.1-0.4) - default: 0.2
+- `--scoring`: Optimization metric (`rmse`, `mae`, `r2`) - default: `rmse`
+- `--random-state`: Random seed for reproducible results - default: 42
+- `--quick`: Use reduced parameter grids for faster tuning
+
+**What gets tuned:**
+
+- **AllInOneRecommender**: Exposure model parameters, preference model parameters, candidate pool sizes, diversity settings
+- **PopSimRecommender**: Global/user weights, rating thresholds, recency bias
+- **SVDAutoRecommender**: SVD components, regularization, learning rates, iterations
+
+**Output:**
+
+The system creates a `hyperparameter_results/` directory with:
+
+- Model-specific parameter files (`.pkl` and `.json`)
+- Comprehensive evaluation metrics (RMSE, MAE, R², Precision@K, NDCG@K)
+- Full tuning summary with model comparison
+- Best parameters for each model
+
+**Example output:**
+
+```text
+🏆 Best Models:
+   Lowest RMSE: AllInOneRecommender (2.1420)
+   Highest Precision@10: AllInOneRecommender (0.8500)
+
+🎯 Best Parameters (AllInOneRecommender):
+   exposure_model_params: {'alpha': 0.01, 'max_iter': 500}
+   preference_model_params: {'alpha': 0.001, 'max_iter': 1000}
+   candidates: 750
+   diversity_lambda: 0.3
+```
+
+**Usage Tips:**
+
+- Use 80/20 or 70/30 train/test splits to preserve rating distributions
+- Higher `cv-folds` gives more robust results but takes longer
+- Start with `--quick` mode, then run full tuning on promising models
+- The test set remains untouched during tuning for unbiased evaluation
+
+#### 9. Explain Recommendations
 
 Get detailed explanation for why a specific movie was recommended:
 
