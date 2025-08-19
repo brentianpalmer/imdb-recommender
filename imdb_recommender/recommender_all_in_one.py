@@ -106,6 +106,31 @@ class AllInOneRecommender(RecommenderAlgo):
 
         print(f"🚀 Initialized AllInOneRecommender with {len(self.dataset.catalog)} items")
 
+    def apply_hyperparameters(self, params: dict):
+        """
+        Apply hyperparameters to the recommender.
+
+        Args:
+            params: Dictionary of hyperparameters
+        """
+        if "exposure_model_params" in params:
+            self.exposure_model_params = params["exposure_model_params"]
+        if "preference_model_params" in params:
+            self.preference_model_params = params["preference_model_params"]
+        if "mmr_lambda" in params:
+            self.mmr_lambda = params["mmr_lambda"]
+        if "svd_components" in params:
+            self.svd_components = params["svd_components"]
+        if "min_votes_threshold" in params:
+            self.min_votes_threshold = params["min_votes_threshold"]
+
+        print("⚙️ Applied cached hyperparameters")
+        print(f"   Exposure model: {self.exposure_model_params}")
+        print(f"   Preference model: {self.preference_model_params}")
+        print(f"   MMR lambda: {self.mmr_lambda}")
+        print(f"   SVD components: {self.svd_components}")
+        print(f"   Min votes threshold: {self.min_votes_threshold}")
+
     @property
     def ratings(self):
         """Access ratings from dataset."""
@@ -556,7 +581,7 @@ class AllInOneRecommender(RecommenderAlgo):
         return pop_normalized
 
     def calculate_personal_scores(
-        self, feature_matrix: np.ndarray, exposure_probs: np.ndarray
+        self, feature_matrix: np.ndarray, exposure_probs: np.ndarray, features_df=None
     ) -> np.ndarray:
         """
         Calculate personal preference scores.
@@ -566,6 +591,7 @@ class AllInOneRecommender(RecommenderAlgo):
         Args:
             feature_matrix: Scaled feature matrix
             exposure_probs: Exposure probabilities
+            features_df: DataFrame of candidate items (for index mapping)
 
         Returns:
             Array of personal preference scores
@@ -585,14 +611,22 @@ class AllInOneRecommender(RecommenderAlgo):
             liked_items = self.ratings[self.ratings["my_rating"] >= 8]["imdb_const"].values
 
             if len(liked_items) > 0:
-                # Find features of liked items
+                # Find features of liked items in current candidate set
                 liked_indices = []
-                for const in liked_items:
-                    idx_matches = self.item_features[
-                        self.item_features["imdb_const"] == const
-                    ].index
-                    if len(idx_matches) > 0:
-                        liked_indices.extend(idx_matches)
+                if features_df is not None:
+                    # Map liked items to current candidate indices
+                    for const in liked_items:
+                        idx_matches = features_df[features_df["imdb_const"] == const].index
+                        if len(idx_matches) > 0:
+                            liked_indices.extend(idx_matches)
+                else:
+                    # Fallback to full catalog indices (for backward compatibility)
+                    for const in liked_items:
+                        idx_matches = self.item_features[
+                            self.item_features["imdb_const"] == const
+                        ].index
+                        if len(idx_matches) > 0:
+                            liked_indices.extend(idx_matches)
 
                 if len(liked_indices) > 0:
                     # Get average features of liked items
@@ -961,13 +995,9 @@ class AllInOneRecommender(RecommenderAlgo):
 
         print("✅ TRAINING COMPLETE!")
         print(f"   - Features: {self.feature_matrix.shape}")
-        latent_shape = (
-            self.latent_features.shape if self.latent_features is not None else 'None'
-        )
+        latent_shape = self.latent_features.shape if self.latent_features is not None else "None"
         print(f"   - Latent space: {latent_shape}")
-        preference_status = (
-            'Trained' if self.preference_model is not None else 'Fallback'
-        )
+        preference_status = "Trained" if self.preference_model is not None else "Fallback"
         print(f"   - Preference model: {preference_status}")
         print("=" * 60)
 
@@ -1001,7 +1031,20 @@ class AllInOneRecommender(RecommenderAlgo):
         """
         # Check if model is fitted
         if not self.is_fitted:
-            print("⚠️  Model not fitted! Training with default parameters...")
+            # Check if we're using cached hyperparameters (non-default values indicate this)
+            using_cached = (
+                self.exposure_model_params.get("alpha", 0.001) != 0.001
+                or self.preference_model_params.get("alpha", 0.001) != 0.001
+                or self.mmr_lambda != 0.8
+                or self.svd_components != 64
+            )
+
+            if using_cached:
+                print("⚠️  Model not fitted! Training with cached optimal hyperparameters...")
+            else:
+                print("⚠️  Model not fitted! Training with default hyperparameters...")
+                print("   💡 Consider running hyperparameter tuning for better performance")
+
             self.fit(user_weight=user_weight, global_weight=global_weight)
 
         print("🎯 INFERENCE: Generating recommendations from trained model...")
@@ -1031,7 +1074,9 @@ class AllInOneRecommender(RecommenderAlgo):
             exposure_probs = self._exposure_probs
 
         # Calculate personal scores using trained preference model
-        personal_scores = self.calculate_personal_scores(feature_matrix, exposure_probs)
+        personal_scores = self.calculate_personal_scores(
+            feature_matrix, exposure_probs, features_df
+        )
 
         # Calculate popularity scores
         popularity_scores = self.calculate_popularity_prior(features_df)

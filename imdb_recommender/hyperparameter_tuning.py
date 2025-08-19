@@ -29,7 +29,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import ParameterGrid, StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit
 
 from .data_io import Dataset
 from .recommender_all_in_one import AllInOneRecommender
@@ -536,8 +536,6 @@ class SVDHyperparameterTuner:
         """Tune hyperparameters for SVDAutoRecommender."""
         import time
 
-        param_grid = SVDHyperparameterTuner.get_param_grid()
-
         print("🔬 Tuning SVDAutoRecommender with sklearn GridSearchCV...")
         print(f"   Cross-validation folds: {cv_folds}")
 
@@ -854,3 +852,52 @@ class HyperparameterTuningPipeline:
             f"({best_precision.evaluation_metrics.precision_at_10:.4f})"
         )
         print()
+
+    @staticmethod
+    def load_best_hyperparameters(model_name: str) -> dict | None:
+        """
+        Load the best cached hyperparameters for a given model.
+
+        Args:
+            model_name: Name of the model (e.g., 'all-in-one', 'pop-sim', 'svd')
+
+        Returns:
+            Dictionary of best parameters or None if not found
+        """
+        results_dir = Path("hyperparameter_results")
+        if not results_dir.exists():
+            return None
+
+        # Map model names to file patterns
+        model_patterns = {
+            "all-in-one": "all_in_one_*.json",
+            "all_in_one": "all_in_one_*.json",  # Allow both formats
+            "pop-sim": "pop_sim_*.json",
+            "pop_sim": "pop_sim_*.json",  # Allow both formats
+            "svd": "svd_*.json",
+        }
+
+        pattern = model_patterns.get(model_name)
+        if not pattern:
+            return None
+
+        # Find latest cached file for this model
+        cached_files = list(results_dir.glob(pattern))
+        if not cached_files:
+            return None
+
+        # Get the most recent file
+        latest_file = sorted(cached_files)[-1]
+
+        try:
+            with open(latest_file) as f:
+                result = json.load(f)
+
+            best_params = result.get("best_params", {})
+            print(f"✅ Loaded cached hyperparameters from {latest_file.name}")
+            print(f"   Best RMSE: {result.get('evaluation_metrics', {}).get('rmse', 'N/A')}")
+
+            return best_params
+        except Exception as e:
+            print(f"⚠️ Error loading hyperparameters from {latest_file}: {e}")
+            return None

@@ -142,6 +142,17 @@ def all_in_one_recommend(
     # Initialize recommender
     recommender = AllInOneRecommender(res.dataset, random_seed=42)
 
+    # Try to load cached hyperparameters
+    cached_params = HyperparameterTuningPipeline.load_best_hyperparameters("all-in-one")
+    if cached_params:
+        typer.echo("🔧 Using cached optimal hyperparameters...")
+        recommender.apply_hyperparameters(cached_params)
+    else:
+        typer.echo("⚠️ No cached hyperparameters found, using defaults...")
+        typer.echo(
+            "   💡 Run 'imdbrec hyperparameter-tune --models all-in-one' to optimize parameters"
+        )
+
     # Determine candidates based on options
     candidate_list = None
     if watchlist_only:
