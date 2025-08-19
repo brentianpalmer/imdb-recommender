@@ -1,0 +1,27 @@
+{
+  "model_name": "SVDAutoRecommender",
+  "best_params": {
+    "global_weight": 0.1,
+    "n_components": 8,
+    "n_iterations": 10,
+    "regularization": 0.01,
+    "user_weight": 0.5
+  },
+  "best_score": -2.2732425400163945,
+  "evaluation_metrics": {
+    "rmse": 0.8282662247104563,
+    "mae": 0.5788589980266385,
+    "r2_score": 0.5934667028171188,
+    "precision_at_5": 0.75,
+    "precision_at_10": 0.75,
+    "recall_at_5": 0.03571428571428571,
+    "recall_at_10": 0.03571428571428571,
+    "ndcg_at_5": 0.7227265726449519,
+    "ndcg_at_10": 0.4690000933206748,
+    "catalog_coverage": 0.00375234521575985,
+    "diversity_score": 0.3333333333333333
+  },
+  "training_time": 663.7325830459595,
+  "prediction_time": 0.28662681579589844,
+  "timestamp": "2025-08-18T16:52:05.227922"
+}

@@ -1,0 +1,26 @@
+{
+  "model_name": "PopSimRecommender",
+  "best_params": {
+    "global_weight": 0.5,
+    "rating_threshold": 7,
+    "recency": 0.0,
+    "user_weight": 0.9
+  },
+  "best_score": -3.1073930707968462,
+  "evaluation_metrics": {
+    "rmse": 3.1073930707968462,
+    "mae": 2.889555728728356,
+    "r2_score": -4.722009894184447,
+    "precision_at_5": 0.75,
+    "precision_at_10": 0.75,
+    "recall_at_5": 0.03571428571428571,
+    "recall_at_10": 0.03571428571428571,
+    "ndcg_at_5": 0.6992148198508501,
+    "ndcg_at_10": 0.4537425745411855,
+    "catalog_coverage": 0.00375234521575985,
+    "diversity_score": 0.3333333333333333
+  },
+  "training_time": 25.934154987335205,
+  "prediction_time": 0.042063236236572266,
+  "timestamp": "2025-08-18T16:41:01.195745"
+}

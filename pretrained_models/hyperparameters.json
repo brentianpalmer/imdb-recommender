@@ -1,0 +1,82 @@
+{
+  "all-in-one": {
+    "best_params": {
+      "exposure_model_params": {
+        "alpha": 0.0001,
+        "max_iter": 1000
+      },
+      "min_votes_threshold": 100,
+      "mmr_lambda": 0.3,
+      "preference_model_params": {
+        "alpha": 0.0001,
+        "max_iter": 1000
+      },
+      "svd_components": 32
+    },
+    "best_score": -4.9649530576105745,
+    "metrics": {
+      "rmse": 4.9649530576105745,
+      "mae": 3.75,
+      "r2_score": -13.6078571047565,
+      "precision_at_5": 0.75,
+      "precision_at_10": 0.75,
+      "recall_at_5": 0.03571428571428571,
+      "recall_at_10": 0.03571428571428571,
+      "ndcg_at_5": 0.6992148198508501,
+      "ndcg_at_10": 0.4537425745411855,
+      "catalog_coverage": 0.00375234521575985,
+      "diversity_score": 0.3333333333333333
+    },
+    "training_time": 10.366415739059448,
+    "prediction_time": 0.012377738952636719
+  },
+  "pop-sim": {
+    "best_params": {
+      "global_weight": 0.5,
+      "rating_threshold": 7,
+      "recency": 0.0,
+      "user_weight": 0.9
+    },
+    "best_score": -3.1073930707968462,
+    "metrics": {
+      "rmse": 3.1073930707968462,
+      "mae": 2.889555728728356,
+      "r2_score": -4.722009894184447,
+      "precision_at_5": 0.75,
+      "precision_at_10": 0.75,
+      "recall_at_5": 0.03571428571428571,
+      "recall_at_10": 0.03571428571428571,
+      "ndcg_at_5": 0.6992148198508501,
+      "ndcg_at_10": 0.4537425745411855,
+      "catalog_coverage": 0.00375234521575985,
+      "diversity_score": 0.3333333333333333
+    },
+    "training_time": 25.934154987335205,
+    "prediction_time": 0.042063236236572266
+  },
+  "svd": {
+    "best_params": {
+      "global_weight": 0.1,
+      "n_components": 8,
+      "n_iterations": 10,
+      "regularization": 0.01,
+      "user_weight": 0.5
+    },
+    "best_score": -2.2732425400163945,
+    "metrics": {
+      "rmse": 0.8282662247104563,
+      "mae": 0.5788589980266385,
+      "r2_score": 0.5934667028171188,
+      "precision_at_5": 0.75,
+      "precision_at_10": 0.75,
+      "recall_at_5": 0.03571428571428571,
+      "recall_at_10": 0.03571428571428571,
+      "ndcg_at_5": 0.7227265726449519,
+      "ndcg_at_10": 0.4690000933206748,
+      "catalog_coverage": 0.00375234521575985,
+      "diversity_score": 0.3333333333333333
+    },
+    "training_time": 663.7325830459595,
+    "prediction_time": 0.28662681579589844
+  }
+}

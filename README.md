@@ -113,172 +113,62 @@ topk = 25
 
 ### Command Line Interface
 
-The main CLI command is `python -m imdb_recommender.cli` with several subcommands:
+The main CLI command is `imdbrec` with several subcommands:
 
 #### 1. Data Ingestion
 
 Process your IMDb exports:
 
 ```bash
-python -m imdb_recommender.cli ingest --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx
+imdbrec ingest --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx
 ```
 
-#### 2. All-in-One Four-Stage Recommender (⭐ Recommended)
+#### 2. Generate Recommendations (⭐ Recommended)
 
-The most advanced recommendation system with machine learning:
-
-##### Basic Usage
+Get personalized movie recommendations from your watchlist:
 
 ```bash
-# Basic recommendations using config
-python -m imdb_recommender.cli all-in-one --config config.toml --topk 25
+# Basic recommendations with top 10 from watchlist
+imdbrec recommend --config config.toml --topk 10
 
-# Direct parameters
-python -m imdb_recommender.cli all-in-one --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx --topk 25
-```
+# Custom weights for personalization vs popularity
+imdbrec recommend --config config.toml --topk 10 --user-weight 0.8 --global-weight 0.2
 
-##### Content Type Filtering 🎬
+# Add recency bias for newer content
+imdbrec recommend --config config.toml --topk 10 --recency 0.1
 
-Get recommendations for specific content types:
-
-```bash
-# Movies only
-python -m imdb_recommender.cli all-in-one --config config.toml --content-type "Movie" --topk 10
-
-# TV Series only
-python -m imdb_recommender.cli all-in-one --config config.toml --content-type "TV Series" --topk 10
-
-# TV Mini Series only
-python -m imdb_recommender.cli all-in-one --config config.toml --content-type "TV Mini Series" --topk 5
-```
-
-Available content types: `Movie`, `TV Series`, `TV Mini Series`, `TV Special`, `TV Movie`, `Video`, `Short`, `TV Episode`, `Music Video`
-
-##### Watchlist-Specific Recommendations 🎯
-
-Get recommendations from your unrated watchlist items:
-
-```bash
-# All unrated watchlist items
-python -m imdb_recommender.cli all-in-one --config config.toml --watchlist-only --topk 10
-
-# Movies from your watchlist only
-python -m imdb_recommender.cli all-in-one --config config.toml --watchlist-only --content-type "Movie" --topk 10
-
-# TV Series from your watchlist only
-python -m imdb_recommender.cli all-in-one --config config.toml --watchlist-only --content-type "TV Series" --topk 5
-```
-
-##### Advanced Options
-
-```bash
-# With evaluation and model export
-python -m imdb_recommender.cli all-in-one --config config.toml --topk 50 --evaluate --export-csv recommendations.csv --save-model model.pkl
-
-# Custom weights and candidate pool size
-python -m imdb_recommender.cli all-in-one --config config.toml --user-weight 0.8 --global-weight 0.2 --candidates 1000
+# Get help on all options
+imdbrec recommend --help
 ```
 
 **Parameters:**
 
+- `--config`: Path to configuration file (recommended)
 - `--topk`: Number of recommendations to return (default: 25)
 - `--user-weight`: Weight for personal preferences (default: 0.7)
-- `--global-weight`: Weight for popularity (default: 0.3)
-- `--exclude-rated`: Exclude already-rated items (default: true)
-- `--watchlist-only`: Only recommend from unrated watchlist items
-- `--content-type`: Filter by content type (Movie, TV Series, etc.)
-- `--candidates`: Size of candidate pool for non-watchlist mode (default: 500)
-- `--save-model`: Path to save trained model
-- `--export-csv`: Path to export recommendations CSV
-- `--evaluate`: Run evaluation with temporal split
-
-See [All-in-One Guide](docs/ALL_IN_ONE_GUIDE.md) for detailed documentation.
-
-#### 3. Traditional Blended Recommender
-
-Get personalized movie recommendations using the original system:
-
-```bash
-# Using config file
-python -m imdb_recommender.cli recommend --config config.toml --seeds tt0480249 --topk 25
-
-# Direct parameters
-python -m imdb_recommender.cli recommend --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx --seeds tt0480249 --topk 25 --user-weight 0.7 --global-weight 0.3 --recency 0.5
-```
-
-**Parameters:**
-
-- `--seeds`: IMDb ID(s) to use as recommendation seeds (comma-separated)
-- `--topk`: Number of recommendations to return (default: 25)
-- `--user-weight`: Weight for user preference similarity (default: 0.7)
-- `--global-weight`: Weight for global popularity (default: 0.3)
+- `--global-weight`: Weight for popularity (default: 0.3)  
 - `--recency`: Bias toward newer releases (default: 0.0)
 - `--exclude-rated`: Exclude already-rated items (default: true)
 
-#### 4. Rate Movies
+#### 3. Hyperparameter Tuning 🔬
 
-Log new ratings:
-
-```bash
-python -m imdb_recommender.cli rate tt1234567 8 --notes "Great cinematography"
-```
-
-#### 5. Manage Watchlist
-
-Add or remove items from watchlist:
-
-```bash
-python -m imdb_recommender.cli watchlist add tt1234567
-python -m imdb_recommender.cli watchlist remove tt1234567
-```
-
-#### 6. Quick Review
-
-Rate and/or add to watchlist in one command:
-
-```bash
-python -m imdb_recommender.cli quick-review tt1234567 --rating 9 --watchlist add --notes "Must watch again"
-```
-
-#### 7. Export Logs
-
-Export your rating/watchlist actions:
-
-```bash
-python -m imdb_recommender.cli export-log --out data/my_actions.csv
-```
-
-#### 8. Hyperparameter Tuning 🔬
-
-Optimize your recommendation models using stratified train/test splits and cross-validation:
+Optimize your recommendation models using scikit-learn's GridSearchCV:
 
 ```bash
 # Tune all models with default settings
-python -m imdb_recommender.cli hyperparameter-tune --config config.toml --models all
+imdbrec hyperparameter-tune --config config.toml --models all
 
 # Tune specific models with custom settings
-python -m imdb_recommender.cli hyperparameter-tune --config config.toml --models pop-sim,svd --cv-folds 5 --test-size 0.2
+imdbrec hyperparameter-tune --config config.toml --models pop-sim,svd --cv-folds 5 --test-size 0.2
 
 # Quick tuning for faster results
-python -m imdb_recommender.cli hyperparameter-tune --config config.toml --models all-in-one --cv-folds 3 --test-size 0.3 --quick
-
-# Advanced tuning with full parameter grids
-python -m imdb_recommender.cli hyperparameter-tune --config config.toml --models all --cv-folds 5 --test-size 0.2 --scoring rmse --random-state 123
+imdbrec hyperparameter-tune --config config.toml --models all-in-one --cv-folds 3 --test-size 0.3 --quick
 ```
 
-**Parameters:**
-
-- `--models`: Models to tune (`all-in-one`, `pop-sim`, `svd`, `all`) - default: `all`
-- `--cv-folds`: Number of cross-validation folds - default: 3
-- `--test-size`: Fraction of data for final test set (0.1-0.4) - default: 0.2
-- `--scoring`: Optimization metric (`rmse`, `mae`, `r2`) - default: `rmse`
-- `--random-state`: Random seed for reproducible results - default: 42
-- `--quick`: Use reduced parameter grids for faster tuning
-
-**What gets tuned:**
+**What gets tuned with sklearn integration:**
 
 - **AllInOneRecommender**: Exposure model parameters, preference model parameters, candidate pool sizes, diversity settings
-- **PopSimRecommender**: Global/user weights, rating thresholds, recency bias
+- **PopSimRecommender**: Global/user weights, rating thresholds, recency bias  
 - **SVDAutoRecommender**: SVD components, regularization, learning rates, iterations
 
 **Output:**
@@ -286,9 +176,9 @@ python -m imdb_recommender.cli hyperparameter-tune --config config.toml --models
 The system creates a `hyperparameter_results/` directory with:
 
 - Model-specific parameter files (`.pkl` and `.json`)
-- Comprehensive evaluation metrics (RMSE, MAE, R², Precision@K, NDCG@K)
+- Comprehensive evaluation metrics using sklearn's cross-validation
 - Full tuning summary with model comparison
-- Best parameters for each model
+- Best parameters for each model cached for future use
 
 **Example output:**
 
@@ -321,6 +211,15 @@ python -m imdb_recommender.cli explain tt1234567 --ratings data/raw/ratings.csv 
 
 ## Recent Improvements 🚀
 
+### Scikit-Learn Integration 🤖
+
+- **🔬 GridSearchCV Integration**: Replaced bespoke cross-validation loops with sklearn's industry-standard hyperparameter optimization
+- **📊 Cross-Validation Framework**: Standardized CV scoring with sklearn's `cross_validate` function for robust model evaluation  
+- **🎯 Custom Recommender Splitter**: Purpose-built train/test splitting that respects temporal ordering and user distributions
+- **⚡ Sklearn Estimator Wrappers**: All recommenders now implement sklearn's `BaseEstimator` and `RegressorMixin` interfaces
+- **💾 Hyperparameter Caching**: Automated caching system stores tuning results with JSON/pickle persistence
+- **🔧 Streamlined CLI**: Clean `imdbrec` command with comprehensive functionality and help system
+
 ### Advanced Filtering & Personalization
 
 - **🎬 Content Type Filtering**: Filter recommendations by Movies, TV Series, TV Mini Series, and more
@@ -340,14 +239,18 @@ python -m imdb_recommender.cli explain tt1234567 --ratings data/raw/ratings.csv 
 ### Example Workflows
 
 ```bash
-# Get top movies from your watchlist you're most likely to rate highly
-python -m imdb_recommender.cli all-in-one --watchlist-only --content-type "Movie" --topk 10 --config config.toml
+# Get top 10 movies from your watchlist with balanced weights
+imdbrec recommend --config config.toml --topk 10 --user-weight 0.8 --global-weight 0.2
 
-# Find great TV series you haven't rated yet
-python -m imdb_recommender.cli all-in-one --content-type "TV Series" --topk 15 --config config.toml
+# Get recommendations with slight preference for newer content
+imdbrec recommend --config config.toml --topk 15 --recency 0.1
 
-# Export your top movie recommendations to CSV for later
-python -m imdb_recommender.cli all-in-one --content-type "Movie" --export-csv my_movie_recs.csv --config config.toml
+# Tune hyperparameters for better recommendations using sklearn
+imdbrec hyperparameter-tune --config config.toml --models all --cv-folds 5
+
+# Get help on any command
+imdbrec recommend --help
+imdbrec hyperparameter-tune --help
 ```
 
 ## How It Works
@@ -422,17 +325,21 @@ Each recommendation includes human-readable explanations:
 ```text
 imdb_recommender/
 ├── __init__.py
-├── cli.py                 # Command-line interface
-├── config.py             # Configuration management
-├── data_io.py            # Data ingestion and processing
-├── features.py           # Feature engineering (genres, years, similarity)
-├── logger.py             # Action logging for Selenium replay
-├── ranker.py             # Recommendation ranking and blending
-├── recommender_base.py   # Base recommender class
-├── recommender_pop.py    # Popularity-based recommender
-├── recommender_svd.py    # SVD matrix factorization recommender
-├── schemas.py            # Data models and schemas
-└── selenium_stub/        # Selenium automation utilities
+├── cli.py                      # Command-line interface (imdbrec command)
+├── config.py                   # Configuration management
+├── data_io.py                  # Data ingestion and processing
+├── features.py                 # Feature engineering (genres, years, similarity)
+├── logger.py                   # Action logging for Selenium replay
+├── ranker.py                   # Recommendation ranking and blending
+├── recommender_base.py         # Base recommender class
+├── recommender_pop.py          # Popularity-based recommender
+├── recommender_svd.py          # SVD matrix factorization recommender
+├── recommender_all_in_one.py   # Advanced ML-based recommender
+├── hyperparameter_tuning.py    # Hyperparameter optimization with sklearn
+├── cross_validation.py         # Cross-validation utilities
+├── sklearn_integration.py      # Scikit-learn compatibility layer
+├── schemas.py                  # Data models and schemas
+└── selenium_stub/              # Selenium automation utilities
     └── replay_from_csv.py
 ```
 
@@ -497,13 +404,13 @@ imdbrec --help
 
 ## Testing
 
-This project includes a comprehensive test suite with 30+ tests covering all major functionality. The test suite is designed to be fast, reliable, and comprehensive.
+This project includes a comprehensive test suite with 46+ tests covering all major functionality. The test suite is designed to be fast, reliable, and comprehensive.
 
 ### Test Suite Overview
 
-**Current Status:** ✅ 30/30 tests passing  
-**Test Coverage:** Comprehensive coverage of all core modules  
-**Runtime:** < 3 seconds for full suite
+**Current Status:** ✅ 46/46 tests passing  
+**Test Coverage:** Comprehensive coverage of all core modules including sklearn integration  
+**Runtime:** < 5 seconds for full suite
 
 ### Test Categories
 
@@ -516,19 +423,34 @@ This project includes a comprehensive test suite with 30+ tests covering all maj
    - End-to-end workflow validation
    - Error handling and edge cases
 
-2. **Logger Tests** (`test_logger.py`) - 1 test
-   - Action logging functionality
-   - CSV format validation
-   - Idempotency guarantees
+2. **All-in-One Tests** (`test_all_in_one.py`) - 15 tests
+   - Advanced ML-based recommendation system
+   - Exposure bias modeling
+   - Pairwise preference learning
+   - Candidate building and filtering
+   - Z-score normalization
+   - Temporal split evaluation
 
-3. **Performance Tests** (`test_performance.py`) - 5 tests
+3. **Cross-Validation Tests** (`test_cross_validation.py`) - 7 tests
+   - Stratified train/test splits
+   - Temporal ordering preservation
+   - User distribution validation
+   - sklearn integration compatibility
+
+4. **Hyperparameter Tuning Tests** (`test_hyperparameter_tuning.py`) - 4 tests
+   - GridSearchCV integration
+   - Parameter caching system
+   - Multi-algorithm optimization
+   - Performance validation
+
+5. **Performance Tests** (`test_performance.py`) - 5 tests
    - Data ingestion performance (< 5s)
    - Recommendation generation speed
    - Scalability with large datasets
    - Memory usage validation
    - Multi-instance stress testing
 
-4. **Selenium Integration Tests** (`test_selenium.py`) - 8 tests
+6. **Selenium Integration Tests** (`test_selenium.py`) - 8 tests
    - CSV replay functionality
    - Browser automation setup
    - Security and credential handling

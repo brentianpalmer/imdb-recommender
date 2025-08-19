@@ -98,6 +98,12 @@ class AllInOneRecommender(RecommenderAlgo):
         # Evaluation metrics storage
         self.metrics = {}
 
+        # Training state
+        self.is_fitted = False
+
+        # Trained model components (set during fit())
+        self._exposure_probs = None  # Cached exposure probabilities
+
         print(f"🚀 Initialized AllInOneRecommender with {len(self.dataset.catalog)} items")
 
     @property
@@ -906,6 +912,67 @@ class AllInOneRecommender(RecommenderAlgo):
 
         return candidates_list
 
+    def fit(self, user_weight: float = 0.7, global_weight: float = 0.3) -> AllInOneRecommender:
+        """
+        Fit the All-in-One recommender model on the training data.
+
+        This method performs the complete four-stage training process:
+        1. Feature Engineering: Build content and popularity features
+        2. Exposure Modeling: Train P(exposed) model
+        3. Preference Modeling: Train P(like|exposed) model using pairwise data
+        4. Diversity Setup: Build latent space for MMR re-ranking
+
+        Args:
+            user_weight: Weight for personal scores (0.0 to 1.0)
+            global_weight: Weight for popularity scores (0.0 to 1.0)
+
+        Returns:
+            Self for method chaining
+        """
+        print("🎓 TRAINING AllInOneRecommender...")
+        print("=" * 60)
+
+        # Store weights
+        self.personal_weight = user_weight
+        self.popularity_weight = global_weight
+
+        # === Stage 1: Feature Engineering ===
+        print("📊 Stage 1: Building feature matrix for training...")
+        self.item_features = self.build_features()
+        self.feature_matrix = self.build_feature_matrix(self.item_features)
+
+        # === Stage 2: Exposure Modeling ===
+        print("🔍 Stage 2: Training exposure model...")
+        self._exposure_probs = self.train_exposure_model(self.item_features, self.feature_matrix)
+
+        # === Stage 3: Preference Modeling ===
+        print("❤️ Stage 3: Training preference model...")
+        X_pairs, y_pairs, pair_weights = self.build_pairwise_data(
+            self.item_features, self.feature_matrix
+        )
+        self.train_preference_model(X_pairs, y_pairs, sample_weight=pair_weights)
+
+        # === Stage 4: Diversity Setup ===
+        print("🌟 Stage 4: Building latent space for diversity...")
+        self.build_latent_space(self.feature_matrix)
+
+        # Mark as fitted
+        self.is_fitted = True
+
+        print("✅ TRAINING COMPLETE!")
+        print(f"   - Features: {self.feature_matrix.shape}")
+        latent_shape = (
+            self.latent_features.shape if self.latent_features is not None else 'None'
+        )
+        print(f"   - Latent space: {latent_shape}")
+        preference_status = (
+            'Trained' if self.preference_model is not None else 'Fallback'
+        )
+        print(f"   - Preference model: {preference_status}")
+        print("=" * 60)
+
+        return self
+
     def score(
         self,
         seeds: list[str],
@@ -916,12 +983,15 @@ class AllInOneRecommender(RecommenderAlgo):
         candidates: list[str] | None = None,
     ) -> tuple[dict[str, float], dict[str, str]]:
         """
-        Generate recommendations using the four-stage process.
+        Generate recommendations using the trained model (INFERENCE ONLY).
+
+        This method requires the model to be fitted first via fit().
+        It performs only inference/scoring without any training.
 
         Args:
             seeds: Seed movie IDs (not used in this implementation)
-            user_weight: Weight for personal scores (maps to personal_weight)
-            global_weight: Weight for popularity scores (maps to popularity_weight)
+            user_weight: Weight for personal scores (for compatibility, but uses fitted weights)
+            global_weight: Weight for popularity scores (for compatibility, but uses fitted weights)
             recency_weight: Recency bias (not used, built into features)
             exclude_rated: Whether to exclude already rated items
             candidates: Optional list of candidate item IDs to restrict scoring to
@@ -929,33 +999,41 @@ class AllInOneRecommender(RecommenderAlgo):
         Returns:
             Tuple of (scores, explanations)
         """
-        print("🚀 Starting four-stage recommendation process...")
+        # Check if model is fitted
+        if not self.is_fitted:
+            print("⚠️  Model not fitted! Training with default parameters...")
+            self.fit(user_weight=user_weight, global_weight=global_weight)
 
-        # Store weights
-        self.personal_weight = user_weight
-        self.popularity_weight = global_weight
+        print("🎯 INFERENCE: Generating recommendations from trained model...")
 
-        # === Stage 1: Feature Engineering ===
-        features_df = self.build_features()
+        # Use training features as base
+        features_df = self.item_features.copy()
+        feature_matrix = self.feature_matrix.copy()
 
         # Filter to candidates if provided
         if candidates is not None:
             candidate_mask = features_df["imdb_const"].isin(candidates)
             features_df = features_df[candidate_mask].reset_index(drop=True)
+
+            # Get corresponding feature matrix rows
+            feature_matrix = self.feature_matrix[candidate_mask]
+
             print(f"🎯 Filtered to {len(features_df)} candidate items")
 
-        feature_matrix = self.build_feature_matrix(features_df)
-        self.feature_matrix = feature_matrix
+        # === INFERENCE: Calculate scores using trained models ===
 
-        # === Stage 2: Exposure Modeling ===
-        exposure_probs = self.train_exposure_model(features_df, feature_matrix)
+        # Get exposure probabilities (from training or recalculate for candidates)
+        if candidates is not None:
+            # Recalculate exposure for candidate subset
+            exposure_probs = self._calculate_exposure_inference(features_df)
+        else:
+            # Use cached training exposure probabilities
+            exposure_probs = self._exposure_probs
 
-        # === Stage 3: Preference Modeling ===
-        X_pairs, y_pairs, pair_weights = self.build_pairwise_data(features_df, feature_matrix)
-        self.train_preference_model(X_pairs, y_pairs, sample_weight=pair_weights)
-
-        # Calculate scores
+        # Calculate personal scores using trained preference model
         personal_scores = self.calculate_personal_scores(feature_matrix, exposure_probs)
+
+        # Calculate popularity scores
         popularity_scores = self.calculate_popularity_prior(features_df)
 
         # === Final Blended Score with Z-Score Normalization ===
@@ -969,16 +1047,13 @@ class AllInOneRecommender(RecommenderAlgo):
         pop_std = np.std(popularity_scores)
         pop_z = (popularity_scores - pop_mean) / (pop_std + 1e-8)
 
-        # Blend normalized scores
+        # Blend normalized scores using fitted weights
         final_scores = self.personal_weight * personal_z + self.popularity_weight * pop_z
 
         print(
             f"📊 Score normalization: personal μ={personal_mean:.3f} σ={personal_std:.3f}, "
             f"popularity μ={pop_mean:.3f} σ={pop_std:.3f}"
         )
-
-        # === Stage 4: Diversity Optimization ===
-        self.build_latent_space(feature_matrix)
 
         # Filter out rated items if requested
         if exclude_rated and len(self.ratings) > 0:
@@ -1025,6 +1100,29 @@ class AllInOneRecommender(RecommenderAlgo):
 
         print(f"✅ Generated scores for {len(scores_dict)} items")
         return scores_dict, explanations_dict
+
+    def _calculate_exposure_inference(self, features_df: pd.DataFrame) -> np.ndarray:
+        """Calculate exposure probabilities during inference (for candidate subsets)."""
+        # Use the same heuristic as training
+        imdb_ratings = features_df["imdb_rating_norm"].values
+        log_votes = features_df["log_votes"].values
+        recency_decay = features_df["recency_decay"].values
+
+        # Normalize each component (use training stats if available)
+        imdb_norm = (imdb_ratings - np.mean(imdb_ratings)) / (np.std(imdb_ratings) + 1e-8)
+        votes_norm = (log_votes - np.mean(log_votes)) / (np.std(log_votes) + 1e-8)
+        recency_norm = (recency_decay - np.mean(recency_decay)) / (np.std(recency_decay) + 1e-8)
+
+        # Combine into exposure score
+        exposure_scores = 0.4 * imdb_norm + 0.4 * votes_norm + 0.2 * recency_norm
+
+        # Convert to probabilities using sigmoid
+        exposure_probs = 1 / (1 + np.exp(-exposure_scores))
+
+        # Ensure reasonable range (0.1 to 0.9)
+        exposure_probs = 0.1 + 0.8 * exposure_probs
+
+        return exposure_probs
 
     def evaluate_temporal_split(self, test_size: float = 0.2) -> dict[str, float]:
         """

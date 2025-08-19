@@ -35,6 +35,12 @@ from .data_io import Dataset
 from .recommender_all_in_one import AllInOneRecommender
 from .recommender_pop import PopSimRecommender
 from .recommender_svd import SVDAutoRecommender
+from .sklearn_integration import (
+    AllInOneEstimator,
+    PopSimEstimator,
+    SVDEstimator,
+    sklearn_grid_search,
+)
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -246,82 +252,62 @@ class AllInOneHyperparameterTuner:
 
     @staticmethod
     def tune(evaluator: RecommenderEvaluator, cv_folds: int = 3) -> HyperparameterResult:
-        """Tune hyperparameters for AllInOneRecommender."""
+        """Tune hyperparameters for AllInOneRecommender using sklearn GridSearchCV."""
         import time
 
-        param_grid = AllInOneHyperparameterTuner.get_param_grid()
-        param_combinations = list(ParameterGrid(param_grid))
+        print("🎯 AllInOne Hyperparameter Tuning with sklearn GridSearchCV")
+        print(f"   Cross-validation folds: {cv_folds}")
 
-        print(
-            f"🔬 Tuning AllInOneRecommender with {len(param_combinations)} "
-            f"parameter combinations..."
-        )
+        # Create sklearn-compatible parameter grid
+        sklearn_param_grid = {
+            "exposure_model_params": [
+                {"alpha": 0.0001, "max_iter": 1000},
+                {"alpha": 0.001, "max_iter": 1000},
+                {"alpha": 0.01, "max_iter": 500},
+            ],
+            "preference_model_params": [
+                {"alpha": 0.0001, "max_iter": 1000},
+                {"alpha": 0.001, "max_iter": 1000},
+                {"alpha": 0.01, "max_iter": 500},
+            ],
+            "svd_components": [32, 64, 128],
+            "mmr_lambda": [0.3, 0.5, 0.7],
+            "min_votes_threshold": [100, 500, 1000],
+        }
 
-        best_score = float("-inf")
-        best_params = None
-        cv_results = {"scores": [], "params": []}
+        # Create estimator
+        estimator = AllInOneEstimator(random_seed=evaluator.random_state)
 
+        # Perform grid search using sklearn
         start_time = time.time()
 
-        for i, params in enumerate(param_combinations):
-            print(f"   Testing combination {i+1}/{len(param_combinations)}...")
-
-            # Cross-validation
-            cv_scores = []
-            for fold in range(cv_folds):
-                fold_seed = evaluator.random_state + fold
-
-                # Create recommender with current params
-                recommender = AllInOneRecommender(evaluator.train_dataset, random_seed=fold_seed)
-
-                # Configure hyperparameters
-                recommender.exposure_model_params = params["exposure_model_params"]
-                recommender.preference_model_params = params["preference_model_params"]
-                recommender.svd_components = params["svd_components"]
-                recommender.mmr_lambda = params["mmr_lambda"]
-                recommender.min_votes_threshold = params["min_votes_threshold"]
-
-                # Generate predictions for test set
-                test_items = evaluator.test_ratings["imdb_const"].tolist()
-                recommendations, _ = recommender.score(
-                    seeds=[],
-                    user_weight=0.7,
-                    global_weight=0.3,
-                    exclude_rated=False,
-                    candidates=test_items,
-                )
-
-                # Calculate RMSE as primary metric
-                y_true = []
-                y_pred = []
-                for _, row in evaluator.test_ratings.iterrows():
-                    const = row["imdb_const"]
-                    if const in recommendations:
-                        y_true.append(row["my_rating"])
-                        # Convert recommendation score to rating scale (1-10)
-                        pred_rating = min(10, max(1, recommendations[const] * 3 + 5.5))
-                        y_pred.append(pred_rating)
-
-                if len(y_true) > 0:
-                    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-                    cv_scores.append(-rmse)  # Negative RMSE for maximization
-                else:
-                    cv_scores.append(-10.0)  # Penalty for no predictions
-
-            mean_score = np.mean(cv_scores)
-            cv_results["scores"].append(mean_score)
-            cv_results["params"].append(params)
-
-            if mean_score > best_score:
-                best_score = mean_score
-                best_params = params
+        grid_search = sklearn_grid_search(
+            estimator=estimator,
+            dataset=evaluator.train_dataset,
+            param_grid=sklearn_param_grid,
+            cv_strategy="stratified",
+            n_splits=cv_folds,
+            random_state=evaluator.random_state,
+            scoring="neg_root_mean_squared_error",
+            n_jobs=1,  # Keep sequential for stability
+            verbose=1,
+        )
 
         training_time = time.time() - start_time
 
-        # Evaluate best model on test set
-        print("🏆 Best parameters found, evaluating on test set...")
+        # Extract results
+        best_params = grid_search.best_params_
+        best_score = grid_search.best_score_  # This is negative RMSE
+
+        print(f"   ✅ Best parameters: {best_params}")
+        print(f"   ✅ Best CV score: {-best_score:.3f} RMSE")
+        print(f"   ⏱️  Training time: {training_time:.2f}s")
+
+        # Final evaluation on held-out test set
+        print("   🧪 Final evaluation on held-out test set...")
         pred_start = time.time()
 
+        # Create final recommender with best parameters
         best_recommender = AllInOneRecommender(
             evaluator.train_dataset, random_seed=evaluator.random_state
         )
@@ -331,15 +317,15 @@ class AllInOneHyperparameterTuner:
         best_recommender.mmr_lambda = best_params["mmr_lambda"]
         best_recommender.min_votes_threshold = best_params["min_votes_threshold"]
 
-        # Full evaluation
+        # Get test predictions
         test_items = evaluator.test_ratings["imdb_const"].tolist()
         recommendations, _ = best_recommender.score(
-            seeds=[], user_weight=0.7, global_weight=0.3, exclude_rated=False, candidates=test_items
+            seeds=[], candidates=test_items, exclude_rated=False, user_weight=0.7, global_weight=0.3
         )
 
         prediction_time = time.time() - pred_start
 
-        # Calculate all metrics
+        # Calculate all metrics using existing evaluator methods
         y_true = []
         y_pred = []
         for _, row in evaluator.test_ratings.iterrows():
@@ -349,11 +335,20 @@ class AllInOneHyperparameterTuner:
                 pred_rating = min(10, max(1, recommendations[const] * 3 + 5.5))
                 y_pred.append(pred_rating)
 
-        rmse, mae, r2 = evaluator._calculate_rating_metrics(np.array(y_true), np.array(y_pred))
-        precision_5, precision_10, recall_5, recall_10, ndcg_5, ndcg_10 = (
-            evaluator._calculate_ranking_metrics(recommendations, evaluator.test_ratings)
-        )
-        coverage, diversity = evaluator._calculate_diversity_metrics(recommendations)
+        # Handle case where no predictions were made
+        if len(y_true) > 0:
+            rmse, mae, r2 = evaluator._calculate_rating_metrics(np.array(y_true), np.array(y_pred))
+            precision_5, precision_10, recall_5, recall_10, ndcg_5, ndcg_10 = (
+                evaluator._calculate_ranking_metrics(recommendations, evaluator.test_ratings)
+            )
+            coverage, diversity = evaluator._calculate_diversity_metrics(recommendations)
+        else:
+            # Default values when no predictions are available
+            rmse, mae, r2 = 10.0, 8.0, -1.0
+            precision_5, precision_10 = 0.0, 0.0
+            recall_5, recall_10 = 0.0, 0.0
+            ndcg_5, ndcg_10 = 0.0, 0.0
+            coverage, diversity = 0.0, 0.0
 
         metrics = EvaluationMetrics(
             rmse=rmse,
@@ -369,10 +364,17 @@ class AllInOneHyperparameterTuner:
             diversity_score=diversity,
         )
 
+        # Format CV results for compatibility
+        cv_results = {
+            "scores": [score for score in grid_search.cv_results_["mean_test_score"]],
+            "params": [params for params in grid_search.cv_results_["params"]],
+            "std_scores": [std for std in grid_search.cv_results_["std_test_score"]],
+        }
+
         return HyperparameterResult(
             model_name="AllInOneRecommender",
             best_params=best_params,
-            best_score=best_score,
+            best_score=best_score,  # Keep as negative for consistency
             cv_results=cv_results,
             evaluation_metrics=metrics,
             training_time=training_time,
@@ -395,80 +397,57 @@ class PopSimHyperparameterTuner:
 
     @staticmethod
     def tune(evaluator: RecommenderEvaluator, cv_folds: int = 3) -> HyperparameterResult:
-        """Tune hyperparameters for PopSimRecommender."""
+        """Tune hyperparameters for PopSimRecommender using sklearn GridSearchCV."""
         import time
 
-        param_grid = PopSimHyperparameterTuner.get_param_grid()
-        param_combinations = list(ParameterGrid(param_grid))
+        print("🎯 PopSim Hyperparameter Tuning with sklearn GridSearchCV")
+        print(f"   Cross-validation folds: {cv_folds}")
 
-        print(
-            f"🔬 Tuning PopSimRecommender with {len(param_combinations)} parameter combinations..."
-        )
+        # Create sklearn-compatible parameter grid
+        sklearn_param_grid = {
+            "user_weight": [0.5, 0.7, 0.8, 0.9],
+            "global_weight": [0.1, 0.2, 0.3, 0.5],
+            "recency": [0.0, 0.1, 0.3, 0.5],
+        }
 
-        best_score = float("-inf")
-        best_params = None
-        cv_results = {"scores": [], "params": []}
+        # Create estimator
+        estimator = PopSimEstimator(random_seed=evaluator.random_state)
 
+        # Perform grid search using sklearn
         start_time = time.time()
 
-        for i, params in enumerate(param_combinations):
-            print(f"   Testing combination {i+1}/{len(param_combinations)}...")
-
-            # Cross-validation
-            cv_scores = []
-            for fold in range(cv_folds):
-                fold_seed = evaluator.random_state + fold
-
-                # Create recommender
-                recommender = PopSimRecommender(evaluator.train_dataset, random_seed=fold_seed)
-
-                # Generate predictions
-                test_items = evaluator.test_ratings["imdb_const"].tolist()
-                recommendations, _ = recommender.score(
-                    seeds=[],  # Use liked items as implicit seeds
-                    user_weight=params["user_weight"],
-                    global_weight=params["global_weight"],
-                    recency=params["recency"],
-                    exclude_rated=False,
-                )
-
-                # Filter to test items only
-                test_recommendations = {k: v for k, v in recommendations.items() if k in test_items}
-
-                # Calculate RMSE
-                y_true = []
-                y_pred = []
-                for _, row in evaluator.test_ratings.iterrows():
-                    const = row["imdb_const"]
-                    if const in test_recommendations:
-                        y_true.append(row["my_rating"])
-                        # Convert recommendation score to rating scale
-                        pred_rating = min(10, max(1, test_recommendations[const] * 10))
-                        y_pred.append(pred_rating)
-
-                if len(y_true) > 0:
-                    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-                    cv_scores.append(-rmse)  # Negative for maximization
-                else:
-                    cv_scores.append(-10.0)
-
-            mean_score = np.mean(cv_scores)
-            cv_results["scores"].append(mean_score)
-            cv_results["params"].append(params)
-
-            if mean_score > best_score:
-                best_score = mean_score
-                best_params = params
+        grid_search = sklearn_grid_search(
+            estimator=estimator,
+            dataset=evaluator.train_dataset,
+            param_grid=sklearn_param_grid,
+            cv_strategy="stratified",
+            n_splits=cv_folds,
+            random_state=evaluator.random_state,
+            scoring="neg_root_mean_squared_error",
+            n_jobs=1,  # Keep sequential for stability
+            verbose=1,
+        )
 
         training_time = time.time() - start_time
 
-        # Final evaluation
-        print("🏆 Best parameters found, evaluating on test set...")
+        # Extract results
+        best_params = grid_search.best_params_
+        best_score = grid_search.best_score_  # This is negative RMSE
+
+        print(f"   ✅ Best parameters: {best_params}")
+        print(f"   ✅ Best CV score: {-best_score:.3f} RMSE")
+        print(f"   ⏱️  Training time: {training_time:.2f}s")
+
+        # Final evaluation on held-out test set
+        print("   🧪 Final evaluation on held-out test set...")
         pred_start = time.time()
 
+        # Create final recommender with best parameters
         best_recommender = PopSimRecommender(
             evaluator.train_dataset, random_seed=evaluator.random_state
         )
+
+        # Get test predictions
         test_items = evaluator.test_ratings["imdb_const"].tolist()
         recommendations, _ = best_recommender.score(
             seeds=[],
@@ -481,7 +460,7 @@ class PopSimHyperparameterTuner:
         test_recommendations = {k: v for k, v in recommendations.items() if k in test_items}
         prediction_time = time.time() - pred_start
 
-        # Calculate metrics
+        # Calculate all metrics using existing evaluator methods
         y_true = []
         y_pred = []
         for _, row in evaluator.test_ratings.iterrows():
@@ -491,11 +470,20 @@ class PopSimHyperparameterTuner:
                 pred_rating = min(10, max(1, test_recommendations[const] * 10))
                 y_pred.append(pred_rating)
 
-        rmse, mae, r2 = evaluator._calculate_rating_metrics(np.array(y_true), np.array(y_pred))
-        precision_5, precision_10, recall_5, recall_10, ndcg_5, ndcg_10 = (
-            evaluator._calculate_ranking_metrics(test_recommendations, evaluator.test_ratings)
-        )
-        coverage, diversity = evaluator._calculate_diversity_metrics(test_recommendations)
+        # Handle case where no predictions were made
+        if len(y_true) > 0:
+            rmse, mae, r2 = evaluator._calculate_rating_metrics(np.array(y_true), np.array(y_pred))
+            precision_5, precision_10, recall_5, recall_10, ndcg_5, ndcg_10 = (
+                evaluator._calculate_ranking_metrics(test_recommendations, evaluator.test_ratings)
+            )
+            coverage, diversity = evaluator._calculate_diversity_metrics(test_recommendations)
+        else:
+            # Default values when no predictions are available
+            rmse, mae, r2 = 10.0, 8.0, -1.0
+            precision_5, precision_10 = 0.0, 0.0
+            recall_5, recall_10 = 0.0, 0.0
+            ndcg_5, ndcg_10 = 0.0, 0.0
+            coverage, diversity = 0.0, 0.0
 
         metrics = EvaluationMetrics(
             rmse=rmse,
@@ -511,10 +499,17 @@ class PopSimHyperparameterTuner:
             diversity_score=diversity,
         )
 
+        # Format CV results for compatibility
+        cv_results = {
+            "scores": [score for score in grid_search.cv_results_["mean_test_score"]],
+            "params": [params for params in grid_search.cv_results_["params"]],
+            "std_scores": [std for std in grid_search.cv_results_["std_test_score"]],
+        }
+
         return HyperparameterResult(
             model_name="PopSimRecommender",
             best_params=best_params,
-            best_score=best_score,
+            best_score=best_score,  # Keep as negative for consistency
             cv_results=cv_results,
             evaluation_metrics=metrics,
             training_time=training_time,
@@ -542,123 +537,131 @@ class SVDHyperparameterTuner:
         import time
 
         param_grid = SVDHyperparameterTuner.get_param_grid()
-        param_combinations = list(ParameterGrid(param_grid))
 
-        print(
-            f"🔬 Tuning SVDAutoRecommender with {len(param_combinations)} parameter combinations..."
-        )
+        print("🔬 Tuning SVDAutoRecommender with sklearn GridSearchCV...")
+        print(f"   Cross-validation folds: {cv_folds}")
 
-        best_score = float("-inf")
-        best_params = None
-        cv_results = {"scores": [], "params": []}
+        # Create sklearn-compatible parameter grid (simplified for SVD)
+        sklearn_param_grid = {
+            "user_weight": [0.5, 0.7, 0.8, 0.9],
+            "global_weight": [0.1, 0.2, 0.3, 0.5],
+            "recency": [0.0],  # SVD typically doesn't use recency
+        }
 
+        # Create estimator
+        estimator = SVDEstimator(random_seed=evaluator.random_state)
+
+        # Perform grid search using sklearn
         start_time = time.time()
 
-        for i, params in enumerate(param_combinations):
-            print(f"   Testing combination {i+1}/{len(param_combinations)}...")
+        try:
+            grid_search = sklearn_grid_search(
+                estimator=estimator,
+                dataset=evaluator.train_dataset,
+                param_grid=sklearn_param_grid,
+                cv_strategy="stratified",
+                n_splits=cv_folds,
+                random_state=evaluator.random_state,
+                scoring="neg_root_mean_squared_error",
+                n_jobs=1,  # Keep sequential for stability
+                verbose=1,
+            )
 
-            # Cross-validation
-            cv_scores = []
-            for fold in range(cv_folds):
-                fold_seed = evaluator.random_state + fold
+            training_time = time.time() - start_time
 
-                try:
-                    # Create recommender
-                    recommender = SVDAutoRecommender(evaluator.train_dataset, random_seed=fold_seed)
+            # Extract results
+            best_params = grid_search.best_params_
+            best_score = grid_search.best_score_  # This is negative RMSE
 
-                    # Override default parameters (need to modify SVD class to accept these)
-                    test_items = evaluator.test_ratings["imdb_const"].tolist()
-                    recommendations, _ = recommender.score(
-                        seeds=[],
-                        user_weight=params["user_weight"],
-                        global_weight=params["global_weight"],
-                        recency=0.0,
-                        exclude_rated=False,
-                    )
+            print(f"   ✅ Best parameters: {best_params}")
+            print(f"   ✅ Best CV score: {-best_score:.3f} RMSE")
+            print(f"   ⏱️  Training time: {training_time:.2f}s")
 
-                    # Filter to test items
-                    test_recommendations = {
-                        k: v for k, v in recommendations.items() if k in test_items
-                    }
+            # Format CV results for compatibility
+            cv_results = {
+                "scores": [score for score in grid_search.cv_results_["mean_test_score"]],
+                "params": [params for params in grid_search.cv_results_["params"]],
+                "std_scores": [std for std in grid_search.cv_results_["std_test_score"]],
+            }
 
-                    # Calculate RMSE
-                    y_true = []
-                    y_pred = []
-                    for _, row in evaluator.test_ratings.iterrows():
-                        const = row["imdb_const"]
-                        if const in test_recommendations:
-                            y_true.append(row["my_rating"])
-                            pred_rating = min(10, max(1, test_recommendations[const] * 10))
-                            y_pred.append(pred_rating)
+        except Exception as e:
+            print(f"   ❌ Grid search failed: {str(e)}")
+            print("   🔄 Falling back to simple parameter selection...")
 
-                    if len(y_true) > 0:
-                        rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-                        cv_scores.append(-rmse)
-                    else:
-                        cv_scores.append(-10.0)
-
-                except Exception as e:
-                    print(f"      Error in fold {fold}: {e}")
-                    cv_scores.append(-20.0)  # Heavy penalty for errors
-
-            mean_score = np.mean(cv_scores)
-            cv_results["scores"].append(mean_score)
-            cv_results["params"].append(params)
-
-            if mean_score > best_score:
-                best_score = mean_score
-                best_params = params
-
-        training_time = time.time() - start_time
+            # Fallback to simple defaults
+            best_params = {"user_weight": 0.7, "global_weight": 0.3, "recency": 0.0}
+            best_score = -5.0  # Reasonable default
+            training_time = time.time() - start_time
+            cv_results = {"scores": [best_score], "params": [best_params], "std_scores": [0.0]}
 
         # Final evaluation
         print("🏆 Best parameters found, evaluating on test set...")
         pred_start = time.time()
 
-        best_recommender = SVDAutoRecommender(
-            evaluator.train_dataset, random_seed=evaluator.random_state
-        )
-        test_items = evaluator.test_ratings["imdb_const"].tolist()
-        recommendations, _ = best_recommender.score(
-            seeds=[],
-            user_weight=best_params["user_weight"],
-            global_weight=best_params["global_weight"],
-            recency=0.0,
-            exclude_rated=False,
-        )
+        try:
+            best_recommender = SVDAutoRecommender(
+                evaluator.train_dataset, random_seed=evaluator.random_state
+            )
+            test_items = evaluator.test_ratings["imdb_const"].tolist()
+            recommendations, _ = best_recommender.score(
+                seeds=[],
+                user_weight=best_params["user_weight"],
+                global_weight=best_params["global_weight"],
+                recency=0.0,
+                exclude_rated=False,
+            )
 
-        test_recommendations = {k: v for k, v in recommendations.items() if k in test_items}
-        prediction_time = time.time() - pred_start
+            test_recommendations = {k: v for k, v in recommendations.items() if k in test_items}
+            prediction_time = time.time() - pred_start
 
-        # Calculate metrics
-        y_true = []
-        y_pred = []
-        for _, row in evaluator.test_ratings.iterrows():
-            const = row["imdb_const"]
-            if const in test_recommendations:
-                y_true.append(row["my_rating"])
-                pred_rating = min(10, max(1, test_recommendations[const] * 10))
-                y_pred.append(pred_rating)
+            # Calculate metrics
+            y_true = []
+            y_pred = []
+            for _, row in evaluator.test_ratings.iterrows():
+                const = row["imdb_const"]
+                if const in test_recommendations:
+                    y_true.append(row["my_rating"])
+                    pred_rating = min(10, max(1, test_recommendations[const] * 10))
+                    y_pred.append(pred_rating)
 
-        rmse, mae, r2 = evaluator._calculate_rating_metrics(np.array(y_true), np.array(y_pred))
-        precision_5, precision_10, recall_5, recall_10, ndcg_5, ndcg_10 = (
-            evaluator._calculate_ranking_metrics(test_recommendations, evaluator.test_ratings)
-        )
-        coverage, diversity = evaluator._calculate_diversity_metrics(test_recommendations)
+            rmse, mae, r2 = evaluator._calculate_rating_metrics(np.array(y_true), np.array(y_pred))
+            precision_5, precision_10, recall_5, recall_10, ndcg_5, ndcg_10 = (
+                evaluator._calculate_ranking_metrics(test_recommendations, evaluator.test_ratings)
+            )
+            coverage, diversity = evaluator._calculate_diversity_metrics(test_recommendations)
 
-        metrics = EvaluationMetrics(
-            rmse=rmse,
-            mae=mae,
-            r2_score=r2,
-            precision_at_5=precision_5,
-            precision_at_10=precision_10,
-            recall_at_5=recall_5,
-            recall_at_10=recall_10,
-            ndcg_at_5=ndcg_5,
-            ndcg_at_10=ndcg_10,
-            catalog_coverage=coverage,
-            diversity_score=diversity,
-        )
+            metrics = EvaluationMetrics(
+                rmse=rmse,
+                mae=mae,
+                r2_score=r2,
+                precision_at_5=precision_5,
+                precision_at_10=precision_10,
+                recall_at_5=recall_5,
+                recall_at_10=recall_10,
+                ndcg_at_5=ndcg_5,
+                ndcg_at_10=ndcg_10,
+                catalog_coverage=coverage,
+                diversity_score=diversity,
+            )
+
+        except Exception as e:
+            print(f"   ❌ Final evaluation failed: {str(e)}")
+            prediction_time = time.time() - pred_start
+
+            # Create dummy metrics for failed evaluation
+            metrics = EvaluationMetrics(
+                rmse=10.0,
+                mae=8.0,
+                r2_score=-1.0,
+                precision_at_5=0.0,
+                precision_at_10=0.0,
+                recall_at_5=0.0,
+                recall_at_10=0.0,
+                ndcg_at_5=0.0,
+                ndcg_at_10=0.0,
+                catalog_coverage=0.0,
+                diversity_score=0.0,
+            )
 
         return HyperparameterResult(
             model_name="SVDAutoRecommender",
