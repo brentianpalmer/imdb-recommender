@@ -283,7 +283,10 @@ def main():
         "--top_dir_k", type=int, default=30, help="Top-K directors to one-hot (default: 30)"
     )
     parser.add_argument(
-        "--out_csv", type=str, default="", help="Optional path to write CV results CSV"
+        "--out_csv",
+        type=str,
+        default="results/elasticnet_cv_results.csv",
+        help="Optional path to write CV results CSV",
     )
     args = parser.parse_args()
 

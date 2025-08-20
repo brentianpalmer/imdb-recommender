@@ -107,9 +107,9 @@ def fine_tune_svd_corrected():
         print(f"   📈 R²: {best['r2']:.4f}")
 
         # Save corrected results
-        with open("svd_corrected_results.json", "w") as f:
+        with open("results/svd_corrected_results.json", "w") as f:
             json.dump(results, f, indent=2)
-        print("\n💾 Corrected results saved to svd_corrected_results.json")
+        print("\n💾 Corrected results saved to results/svd_corrected_results.json")
 
         return best
 

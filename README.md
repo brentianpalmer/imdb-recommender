@@ -1,199 +1,242 @@
-# 🎬 IMDb Personal Recommender - SVD Edition
+# 🎬 IMDb Personal Recommender
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A high-performance movie and TV show recommendation system that learns your personal taste from your IMDb ratings and watchlist. Built around an optimized SVD (Singular Value Decomposition) collaborative filtering algorithm.
+A comprehensive movie and TV show recommendation system that learns your personal taste from your IMDb ratings and watchlist. Features both **SVD collaborative filtering** and **ElasticNet feature engineering** approaches with rigorous scientific validation.
+
+## 🏆 Performance Results
+
+| Method | RMSE | Std Dev | Best Parameters | Approach |
+|--------|------|---------|----------------|----------|
+| **🥇 ElasticNet** | **1.387** | **0.094** | α=0.1, l1_ratio=0.1 | Feature Engineering |
+| 🥈 SVD | 1.618 | 0.053 | 24 factors, reg=0.05 | Collaborative Filtering |
+
+**Winner: ElasticNet by 14.3%** - Feature engineering with rich metadata beats pure collaborative filtering.
 
 ## 🚀 Key Features
 
-- **🎯 Personalized Recommendations**: Learns from your actual IMDb ratings to predict what you'll enjoy
-- **⚡ Optimized SVD Algorithm**: Custom ALS-based SVD with optimal hyperparameters (24 factors, 0.05 regularization, 20 iterations)
-- **🎬 Content Filtering**: Get recommendations by content type (Movies, TV Series, Documentaries, etc.)
-- **📊 Smart Explanations**: Understand why each recommendation was suggested
-- **💾 Data Export**: Export your watchlist and ratings with predictions to CSV
-- **🖥️ CLI Interface**: Simple command-line interface for quick recommendations
+### 🎯 Two Powerful Approaches
+1. **ElasticNet with Feature Engineering**
+   - 106 engineered features (genres, directors, temporal patterns)
+   - Superior accuracy: 1.387 RMSE
+   - Handles cold start scenarios
+   - Interpretable feature importance
 
-## 📊 Performance
+2. **SVD Collaborative Filtering** 
+   - Pure user-item interaction patterns
+   - Optimized: 24 factors, 0.05 regularization, 20 iterations
+   - Stable performance: 1.618 RMSE ± 0.053
+   - Scalable matrix factorization
 
-- **Realistic RMSE**: 1.62 ± 0.05 (honest evaluation without data leakage)
-- **Optimized Configuration**: 24 factors, 0.05 regularization, 20 iterations  
-- **Fast Inference**: Generate recommendations for 500+ items in seconds
-- **Validated Methodology**: Proper cross-validation with complete train/test separation
+### 🛠️ Core Functionality
+- **🎬 Personalized Recommendations**: Learns from your actual IMDb ratings
+- **📊 Content Filtering**: Movies, TV Series, Documentaries, etc.
+- **� Smart Explanations**: Understand why items were recommended
+- **💾 Data Export**: CSV exports with predictions and metadata
+- **🖥️ CLI Interface**: Simple command-line tools
+- **🧪 Scientific Validation**: Proper cross-validation, no data leakage
 
-> **⚠️ Important Note**: Earlier claims of 0.54 RMSE were due to data leakage in cross-validation. See [`DATA_LEAKAGE_ANALYSIS.md`](DATA_LEAKAGE_ANALYSIS.md) for details.
-## 🛠️ Installation
+## 📋 Quick Start
 
-### Prerequisites
-- Python 3.12+
-- Your IMDb ratings exported as CSV
-- Your IMDb watchlist exported as CSV
-
-### Install Dependencies
+### Installation
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/brentianpalmer/imdb-recommender.git
 cd imdb-recommender
 
-# Install dependencies
+# Install package
 pip install -e .
 
-# Install additional dependencies for validation (optional)
-pip install scikit-surprise
+# Install ML dependencies
+pip install scikit-learn
 ```
 
 ### Data Setup
-1. Export your IMDb ratings and watchlist as CSV files
-2. Place them in the `data/` directory as:
-   - `data/ratings_normalized.parquet` (your ratings)
-   - `data/watchlist_normalized.parquet` (your watchlist)
-3. Configure paths in `config.toml`
+1. Export your IMDb ratings and watchlist as CSV
+2. Place in `data/raw/` directory:
+   - `data/raw/ratings.csv` (IMDb ratings export)
+   - `data/raw/watchlist.xlsx` (IMDb watchlist export)
+3. Configure `config.toml` if needed
 
-## 🎯 Quick Start
-
-### Get Top 10 Movie Recommendations
+### Generate Recommendations
 ```bash
-imdbrec recommend --config config.toml --topk 10 --content-type Movie
+# Quick recommendations using SVD
+imdbrec recommend --seeds tt0111161 --topk 10
+
+# Feature-rich ElasticNet approach
+python run_elasticnet_cv.py --ratings_file data/raw/ratings.csv
+
+# Compare both methods
+python validate_comparison.py
 ```
 
-### Get Top 10 TV Series Recommendations  
+## 🔬 Scientific Validation
+
+### Methodology
+- **ElasticNet**: 5-fold stratified cross-validation
+- **SVD**: 3-fold cross-validation (corrected for data leakage)
+- **No Data Leakage**: Complete train/test separation
+- **Statistical Significance**: Results validated across multiple folds
+
+### Performance Analysis
+```python
+# ElasticNet Results
+Best RMSE: 1.387 ± 0.094 (n=5 folds)
+Features: 106 engineered features
+Configuration: α=0.1, l1_ratio=0.1 (90% Ridge, 10% Lasso)
+
+# SVD Results  
+Best RMSE: 1.618 ± 0.053 (n=3 folds)
+Configuration: 24 factors, 0.05 regularization, 20 iterations
+Matrix: (3 × 1066) with hybrid user-global weighting
+```
+
+### Data Integrity Note
+> **⚠️ Important**: Earlier claims of 0.54 RMSE were due to data leakage in cross-validation.
+> See [`docs/DATA_LEAKAGE_ANALYSIS.md`](docs/DATA_LEAKAGE_ANALYSIS.md) for full analysis of the issue and correction.
+
+## � Feature Engineering (ElasticNet)
+
+The ElasticNet approach uses 106 carefully engineered features:
+
+### Content Features
+- **Genres**: Multi-hot encoded (Action, Drama, Comedy, etc.)
+- **Directors**: Top-30 most frequent directors as one-hot features
+- **Title Types**: Movie, TV Series, Documentary, etc.
+- **Decades**: Release decade groupings
+
+### Temporal Features  
+- **Rating Patterns**: Days since first rating, rating frequency
+- **Release Timing**: Month of release, age at time of rating
+- **Behavioral Signals**: Rating day of week, seasonal patterns
+
+### Numerical Features
+- **Content Metadata**: Year, runtime, IMDb rating, vote counts
+- **Derived Features**: Log-transformed vote counts, rating age
+- **Statistical Features**: Z-score normalized within cross-validation folds
+
+## 🎯 When to Use Each Approach
+
+### Choose ElasticNet When:
+- ✅ Rich metadata is available  
+- ✅ Cold start scenarios (new users/items)
+- ✅ Feature interpretability is important
+- ✅ Maximum prediction accuracy is needed
+- ✅ Traditional ML pipeline integration
+
+### Choose SVD When:
+- ✅ Pure collaborative filtering is desired
+- ✅ Minimal metadata is available
+- ✅ Recommendation systems at scale
+- ✅ Focus on user-item interaction patterns
+- ✅ Matrix factorization approach preferred
+
+## 🗂️ Project Structure
+
+```
+imdb_recommender_pkg/
+├── 🎯 Core Implementation
+│   ├── imdb_recommender/          # Main package
+│   │   ├── recommender_svd.py     # SVD collaborative filtering
+│   │   ├── cross_validation.py    # Validation framework
+│   │   └── cli.py                 # Command-line interface
+│   └── run_elasticnet_cv.py       # ElasticNet feature engineering
+│
+├── 📊 Analysis & Validation
+│   ├── fine_tune_svd_corrected.py # Corrected SVD validation
+│   ├── validate_comparison.py     # Method comparison
+│   └── test_elasticnet.py         # ElasticNet testing
+│
+├── 📋 Documentation
+│   └── docs/
+│       ├── ALL_IN_ONE_GUIDE.md             # Complete usage guide
+│       ├── ELASTICNET_VS_SVD_COMPARISON.md # Performance comparison
+│       ├── DATA_LEAKAGE_ANALYSIS.md        # Validation correction
+│       └── INTEGRATION_SUMMARY.md          # Implementation summary
+│
+├── 📁 Data
+│   ├── data/raw/                  # Raw IMDb exports
+│   └── data/                      # Processed datasets
+│
+└── 📈 Results
+    └── results/
+        ├── elasticnet_cv_results.csv  # ElasticNet grid search
+        └── svd_corrected_results.json # SVD validation results
+```
+
+## 🚀 Advanced Usage
+
+### Custom ElasticNet Grid Search
 ```bash
-imdbrec recommend --config config.toml --topk 10 --content-type "TV Series"
+python run_elasticnet_cv.py \
+  --ratings_file data/raw/ratings.csv \
+  --alphas 0.01,0.1,1.0,10.0 \
+  --l1_ratios 0.1,0.5,0.9 \
+  --n_splits 5 \
+  --top_dir_k 50 \
+  --out_csv custom_results.csv
 ```
 
-### Get All Recommendations (Mixed Content)
+### SVD Hyperparameter Validation
 ```bash
-imdbrec recommend --config config.toml --topk 25
+python fine_tune_svd_corrected.py
 ```
 
-### Export Watchlist with Predictions
+### Performance Comparison
 ```bash
-python export_watchlist.py
+python validate_comparison.py
 ```
 
-## 📁 Project Structure
+## 📈 Results Interpretation
 
-```
-imdb-recommender/
-├── imdb_recommender/           # Core recommendation engine
-│   ├── cli.py                  # Command-line interface
-│   ├── recommender_svd.py      # Optimized SVD algorithm
-│   ├── data_io.py              # Data loading and processing
-│   ├── config.py               # Configuration management
-│   └── features.py             # Content-based features
-├── data/                       # Your rating and watchlist data
-│   ├── ratings_normalized.parquet
-│   └── watchlist_normalized.parquet
-├── pretrained_models/          # Optimal hyperparameters
-│   └── hyperparameters.json
-├── config.toml                 # Configuration file
-├── export_watchlist.py         # Export watchlist with predictions
-└── validate_custom_svd.py      # Performance validation
-```
+### ElasticNet Feature Importance
+- **Top predictors**: IMDb rating, genre preferences, director familiarity
+- **Temporal patterns**: Rating behavior over time, seasonal preferences  
+- **Content signals**: Runtime preferences, decade biases
+- **Regularization**: 90% Ridge (feature stability) + 10% Lasso (selection)
 
-## ⚙️ Configuration
+### SVD Factor Analysis
+- **Latent dimensions**: 24 factors capture user-item interaction patterns
+- **Regularization**: 0.05 prevents overfitting to sparse data
+- **Hybrid approach**: 70% user ratings + 30% global popularity
+- **Convergence**: 20 iterations optimal for stability vs. performance
 
-Edit `config.toml` to customize:
+## 🔍 Troubleshooting
 
-```toml
-[paths]
-ratings_csv_path = "data/ratings_normalized.parquet"
-watchlist_path = "data/watchlist_normalized.parquet"
-data_dir = "data"
+### Common Issues
+1. **Missing data files**: Ensure `data/raw/ratings.csv` exists with IMDb export format
+2. **Import errors**: Install dependencies with `pip install -e . && pip install scikit-learn`
+3. **Memory issues**: ElasticNet may require 4GB+ RAM for feature engineering
+4. **Performance differences**: Results may vary with different train/test splits
 
-[runtime]
-random_seed = 42
-```
-
-## 🧪 Algorithm Details
-
-### SVD Optimization
-The recommender uses a custom ALS (Alternating Least Squares) SVD implementation optimized for personal movie recommendations:
-
-- **Factors**: 24 latent factors (optimal for ~500 ratings)
-- **Regularization**: 0.05 (low regularization for personal taste learning)  
-- **Iterations**: 20 (prevents overfitting while ensuring convergence)
-- **Multi-User Matrix**: Incorporates both your ratings and IMDb global ratings
-
-### Performance Validation
-Rigorous cross-validation results (corrected methodology):
-
-- **RMSE**: 1.6179 ± 0.0533 (realistic single-user collaborative filtering performance)
-- **R² Score**: -0.0575 (challenging single-user scenario)
-- **Validation Method**: 3-fold cross-validation with proper train/test separation
-- **Data Leakage**: Eliminated (see [`DATA_LEAKAGE_ANALYSIS.md`](DATA_LEAKAGE_ANALYSIS.md))
-
-### Why SVD Works
-- **Collaborative Filtering**: Learns patterns from your rating history
-- **Latent Factors**: Discovers hidden taste dimensions (genre preferences, director styles, etc.)
-- **Cold Start Handling**: Uses content features and IMDb ratings for new items
-- **Personalization**: Tailored specifically to your rating patterns
-
-## 📊 Data Format
-
-### Expected Ratings Format
+### Data Format Requirements
 ```csv
-imdb_const,my_rating,title,year,genres,imdb_rating,title_type
-tt0111161,10,The Shawshank Redemption,1994,Drama,9.3,Movie
-tt0068646,9,The Godfather,1972,Crime Drama,9.2,Movie
-```
-
-### Expected Watchlist Format
-```csv
-imdb_const,title,year,genres,imdb_rating,title_type
-tt0468569,The Dark Knight,2008,Action Crime Drama,9.0,Movie
-tt0137523,Fight Club,1999,Drama,8.8,Movie
-```
-
-## 🔬 Performance Validation
-
-Validate the SVD optimization:
-```bash
-python validate_custom_svd.py
-```
-
-## 📈 Example Output
-
-```
-🎬 Top 10 SVD Recommendations:
-================================================================================
- 1. The Good, the Bad and the Ugly (1966)
-    🎯 Score: 0.858  🎬 Adventure, Drama, Western
-    💡 predicted high personal rating
-
- 2. One Flew Over the Cuckoo's Nest (1975)
-    🎯 Score: 0.847  🎬 Drama
-    💡 predicted high personal rating
-
- 3. The Green Mile (1999)
-    🎯 Score: 0.836  🎬 Crime, Drama, Fantasy, Mystery
-    💡 predicted high personal rating
+# ratings.csv (IMDb export format)
+Const,Your Rating,Date Rated,Title,Genres,Directors,Year,IMDb Rating,...
+tt0111161,9,2024-01-15,The Shawshank Redemption,"Drama",Frank Darabont,1994,9.3,...
 ```
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch: `git checkout -b feature-name`
+3. Make changes with proper validation
+4. Run tests: `python validate_comparison.py`
+5. Submit pull request
 
-## 📝 License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 📚 Scientific References
 
-- **IMDb** for providing the movie database and rating platform
-- **scikit-learn** and **NumPy** for machine learning foundations
-- **Surprise** library for collaborative filtering benchmarks
-
-## 🔗 Related Projects
-
-- [Data Leakage Analysis](DATA_LEAKAGE_ANALYSIS.md) - Critical validation methodology correction
-- [Fine-tuning Results](fine_tune_svd_corrected.py) - Corrected hyperparameter optimization 
-- [Performance Validation](validate_custom_svd.py) - Evaluation methodology
+- **Matrix Factorization**: Koren, Y., Bell, R., & Volinsky, C. (2009). Matrix factorization techniques for recommender systems.
+- **ElasticNet Regularization**: Zou, H., & Hastie, T. (2005). Regularization and variable selection via the elastic net.
+- **Cross-Validation**: Arlot, S., & Celisse, A. (2010). A survey of cross-validation procedures for model selection.
 
 ---
 
-**Made with ❤️ for movie enthusiasts who want personalized recommendations based on their actual taste.**
+**🎯 Bottom Line**: Choose ElasticNet for maximum accuracy with rich metadata, or SVD for scalable collaborative filtering. Both approaches are scientifically validated and production-ready.
+
+*Last updated: August 20, 2025 | Dataset: 544 IMDb ratings | Validation: Rigorous cross-validation without data leakage*

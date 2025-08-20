@@ -3,6 +3,8 @@
 Validation test to confirm both ElasticNet and SVD produce consistent results
 """
 
+import json
+
 import pandas as pd
 
 
@@ -12,7 +14,7 @@ def main():
 
     # Check ElasticNet results
     try:
-        elasticnet_results = pd.read_csv("elasticnet_cv_results.csv")
+        elasticnet_results = pd.read_csv("results/elasticnet_cv_results.csv")
         best_en = elasticnet_results.iloc[0]
         print(f"✅ ElasticNet Best RMSE: {best_en['rmse_mean']:.4f} ± {best_en['rmse_std']:.4f}")
         print(f"   Parameters: α={best_en['alpha']}, l1_ratio={best_en['l1_ratio']}")
@@ -22,9 +24,7 @@ def main():
 
     # Check SVD results
     try:
-        import json
-
-        with open("svd_corrected_results.json") as f:
+        with open("results/svd_corrected_results.json") as f:
             svd_results = json.load(f)
         best_svd = svd_results[0]  # First result is the best
         print(f"✅ SVD Best RMSE: {best_svd['rmse']:.4f} ± {best_svd['rmse_std']:.4f}")

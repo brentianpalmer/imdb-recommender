@@ -8,10 +8,10 @@ This analysis compares two machine learning approaches for IMDb movie rating pre
 
 ## Results Summary
 
-| Method | Best RMSE | Standard Deviation | Best Parameters |
-|--------|-----------|------------------|----------------|
-| **ElasticNet** | **1.3873** | **0.0936** | α=0.1, l1_ratio=0.1, 30 top directors |
-| SVD | 1.6179 | 0.0533 | 24 factors, reg=0.05, 20 iterations |
+| Method         | Best RMSE  | Standard Deviation | Best Parameters                       |
+| -------------- | ---------- | ------------------ | ------------------------------------- |
+| **ElasticNet** | **1.3873** | **0.0936**         | α=0.1, l1_ratio=0.1, 30 top directors |
+| SVD            | 1.6179     | 0.0533             | 24 factors, reg=0.05, 20 iterations   |
 
 ## Key Findings
 
