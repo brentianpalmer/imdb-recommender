@@ -6,10 +6,10 @@ This guide covers both **SVD collaborative filtering** and **ElasticNet feature 
 
 ## 🏆 Performance Summary
 
-| Method | RMSE | Approach | Best Use Case |
-|--------|------|----------|--------------|
-| **ElasticNet** | **1.387** | Feature Engineering | Rich metadata, cold start |
-| **SVD** | 1.618 | Collaborative Filtering | User-item interactions, scalability |
+| Method         | RMSE      | Approach                | Best Use Case                       |
+| -------------- | --------- | ----------------------- | ----------------------------------- |
+| **ElasticNet** | **1.387** | Feature Engineering     | Rich metadata, cold start           |
+| **SVD**        | 1.618     | Collaborative Filtering | User-item interactions, scalability |
 
 ## 🚀 Quick Start Commands
 

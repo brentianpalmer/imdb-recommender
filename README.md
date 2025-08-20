@@ -7,12 +7,13 @@ A comprehensive movie and TV show recommendation system that learns your persona
 
 ## 🏆 Performance Results
 
-| Method | RMSE | Std Dev | Best Parameters | Approach |
-|--------|------|---------|----------------|----------|
-| **🥇 ElasticNet** | **1.387** | **0.094** | α=0.1, l1_ratio=0.1 | Feature Engineering |
-| 🥈 SVD | 1.618 | 0.053 | 24 factors, reg=0.05 | Collaborative Filtering |
+| Method           | RMSE      | R²        | Std Dev   | Best Parameters      | Approach                |
+| ---------------- | --------- | --------- | --------- | -------------------- | ----------------------- |
+| **🥇 ElasticNet** | **1.386** | **0.234** | **0.095** | α=0.1, l1_ratio=0.1  | Feature Engineering     |
+| 🥈 SVD            | 1.618     | -         | 0.053     | 24 factors, reg=0.05 | Collaborative Filtering |
+| 📊 Baseline       | 1.533     | 0.000     | -         | Mean predictor       | Constant                |
 
-**Winner: ElasticNet by 14.3%** - Feature engineering with rich metadata beats pure collaborative filtering.
+**Winner: ElasticNet by 14.3%** - Feature engineering with 106 engineered features outperforms collaborative filtering through rigorous 5-fold cross validation.
 
 ## 🚀 Key Features
 
@@ -64,11 +65,14 @@ pip install scikit-learn
 # Quick recommendations using SVD
 imdbrec recommend --seeds tt0111161 --topk 10
 
-# Feature-rich ElasticNet approach
-python run_elasticnet_cv.py --ratings_file data/raw/ratings.csv
+# Feature-rich ElasticNet approach (optimal model)
+python elasticnet_recommender.py --ratings_file data/raw/ratings.csv --watchlist_file data/raw/watchlist.xlsx --topk 10
 
-# Compare both methods
-python validate_comparison.py
+# Run full cross validation
+python elasticnet_cross_validation.py --ratings_file data/raw/ratings.csv --n_splits 5
+
+# Train optimal model
+python train_optimal_elasticnet.py --ratings_file data/raw/ratings.csv
 ```
 
 ## 🔬 Scientific Validation
@@ -81,13 +85,15 @@ python validate_comparison.py
 
 ### Performance Analysis
 ```python
-# ElasticNet Results
-Best RMSE: 1.387 ± 0.094 (n=5 folds)
-Features: 106 engineered features
-Configuration: α=0.1, l1_ratio=0.1 (90% Ridge, 10% Lasso)
+# ElasticNet Results (5-fold stratified CV)
+Best RMSE: 1.386 ± 0.095 (α=0.1, l1_ratio=0.1)
+R²: 0.234 ± 0.055
+Features: 106 engineered → 36 selected (34% sparsity)
+Grid Search: 25 combinations tested
+Configuration: 90% Ridge + 10% Lasso regularization
 
-# SVD Results  
-Best RMSE: 1.618 ± 0.053 (n=3 folds)
+# SVD Results (3-fold corrected CV)
+Best RMSE: 1.618 ± 0.053 
 Configuration: 24 factors, 0.05 regularization, 20 iterations
 Matrix: (3 × 1066) with hybrid user-global weighting
 ```
@@ -137,16 +143,19 @@ The ElasticNet approach uses 106 carefully engineered features:
 ```
 imdb_recommender_pkg/
 ├── 🎯 Core Implementation
-│   ├── imdb_recommender/          # Main package
-│   │   ├── recommender_svd.py     # SVD collaborative filtering
-│   │   ├── cross_validation.py    # Validation framework
-│   │   └── cli.py                 # Command-line interface
-│   └── run_elasticnet_cv.py       # ElasticNet feature engineering
+│   ├── imdb_recommender/                    # Main package
+│   │   ├── recommender_svd.py               # SVD collaborative filtering
+│   │   ├── cross_validation.py              # Validation framework
+│   │   └── cli.py                           # Command-line interface
+│   ├── elasticnet_recommender.py            # ElasticNet recommendations
+│   ├── elasticnet_cross_validation.py       # ElasticNet CV framework
+│   └── train_optimal_elasticnet.py          # Optimal model training
 │
 ├── 📊 Analysis & Validation
-│   ├── fine_tune_svd_corrected.py # Corrected SVD validation
-│   ├── validate_comparison.py     # Method comparison
-│   └── test_elasticnet.py         # ElasticNet testing
+│   ├── fine_tune_svd_corrected.py           # Corrected SVD validation
+│   ├── analyze_elasticnet_results.py        # Results analysis
+│   ├── debug_elasticnet_cv.py               # CV diagnostics
+│   └── validate_comparison.py               # Method comparison
 │
 ├── 📋 Documentation
 │   └── docs/
@@ -161,21 +170,32 @@ imdb_recommender_pkg/
 │
 └── 📈 Results
     └── results/
-        ├── elasticnet_cv_results.csv  # ElasticNet grid search
-        └── svd_corrected_results.json # SVD validation results
+        ├── elasticnet_cv_comprehensive.csv     # Full 5-fold CV results
+        ├── elasticnet_optimal_model.pkl        # Best trained model
+        ├── model_comparison_summary.csv        # Performance comparison
+        ├── ELASTICNET_CV_SUMMARY.md           # Detailed analysis
+        └── svd_corrected_results.json          # SVD validation results
 ```
 
 ## 🚀 Advanced Usage
 
-### Custom ElasticNet Grid Search
+### Custom ElasticNet Cross Validation
 ```bash
-python run_elasticnet_cv.py \
+python elasticnet_cross_validation.py \
   --ratings_file data/raw/ratings.csv \
-  --alphas 0.01,0.1,1.0,10.0 \
-  --l1_ratios 0.1,0.5,0.9 \
   --n_splits 5 \
-  --top_dir_k 50 \
-  --out_csv custom_results.csv
+  --alphas "0.01,0.1,1.0,3.0" \
+  --l1_ratios "0.1,0.5,0.9" \
+  --top_dir_k 30 \
+  --output results/custom_cv_results.csv
+```
+
+### Train Optimal ElasticNet Model
+```bash
+python train_optimal_elasticnet.py \
+  --ratings_file data/raw/ratings.csv \
+  --save_model \
+  --model_path results/my_model.pkl
 ```
 
 ### SVD Hyperparameter Validation
@@ -183,9 +203,12 @@ python run_elasticnet_cv.py \
 python fine_tune_svd_corrected.py
 ```
 
-### Performance Comparison
+### Generate Recommendations with Trained Model
 ```bash
-python validate_comparison.py
+python elasticnet_recommender.py \
+  --ratings_file data/raw/ratings.csv \
+  --watchlist_file data/raw/watchlist.xlsx \
+  --topk 10
 ```
 
 ## 📈 Results Interpretation
