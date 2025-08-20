@@ -1,197 +1,190 @@
-# IMDb Optimal SVD Recommender
+# 🎬 IMDb Personal Recommender - SVD Edition
 
-A focused movie recommendation system that analyzes your IMDb ratings and watchlist to generate personalized recommendations using **rigorously optimized SVD (Singular Value Decomposition) matrix factorization**.
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 🚀 Performance
+A high-performance movie and TV show recommendation system that learns your personal taste from your IMDb ratings and watchlist. Built around an optimized SVD (Singular Value Decomposition) collaborative filtering algorithm.
 
-**Optimal configuration achieved through comprehensive hyperparameter tuning:**
-- **RMSE: 0.828** (rating prediction accuracy)
-- **R² Score: 0.593** (59.3% of rating variance explained)
-- **MAE: 0.579** (mean absolute error)
+## 🚀 Key Features
 
-This represents the **best-performing configuration** among all tested approaches including gradient boosting, all-in-one models, and multiple SVD variants.
+- **🎯 Personalized Recommendations**: Learns from your actual IMDb ratings to predict what you'll enjoy
+- **⚡ Optimized SVD Algorithm**: Custom ALS-based SVD with optimal hyperparameters (24 factors, 0.05 regularization, 20 iterations)
+- **🎬 Content Filtering**: Get recommendations by content type (Movies, TV Series, Documentaries, etc.)
+- **📊 Smart Explanations**: Understand why each recommendation was suggested
+- **💾 Data Export**: Export your watchlist and ratings with predictions to CSV
+- **🖥️ CLI Interface**: Simple command-line interface for quick recommendations
 
-## Overview
+## 📊 Performance
 
-This project creates a sophisticated SVD-based recommendation engine that:
-
-- Ingests your IMDb ratings and watchlist data
-- Uses **optimal SVD matrix factorization** for collaborative filtering  
-- Blends personal preferences with global popularity signals using proven weights
-- Provides explainable recommendations with detailed reasoning
-- Supports content type filtering (Movies, TV Series, etc.)
-
-## Key Features
-
-### Optimized SVD Algorithm
-
-- **Optimal hyperparameters discovered through extensive testing**:
-  - `n_factors=8` (reduced dimensionality prevents overfitting)
-  - `reg_param=0.01` (minimal regularization for best fit)
-  - `n_iter=10` (efficient convergence)
-  - `user_weight=0.5`, `global_weight=0.1` (optimal blending)
-
-- **Alternating Least Squares (ALS)** optimization for robust matrix factorization
-- **Collaborative filtering** with user ratings and IMDb global ratings
-- **Superior performance** with proven metrics
-
-### Smart Filtering & Personalization
-
-- **Content Type Filtering**: Focus on Movies, TV Series, TV Mini Series, or any specific content type
-- **Watchlist Recommendations**: Get recommendations specifically from your unrated watchlist items
-- **Flexible weighting**: Balance personal preferences vs. global popularity
-- **Recency bias**: Optional weighting toward newer releases
-- **Exclude rated items**: Focus on new discoveries
-
-### Content Analysis
-
-- **Genre-based explanations**: Understand why movies were recommended based on genre overlap
-- **Global acclaim integration**: Balance personal taste with critical consensus
-- **Rating prediction**: Predict your likely rating for unseen content
-
-## Installation
+- **High Accuracy**: Optimized SVD configuration delivers superior prediction quality
+- **Fast Inference**: Generate recommendations for 500+ items in seconds
+## 🛠️ Installation
 
 ### Prerequisites
+- Python 3.12+
+- Your IMDb ratings exported as CSV
+- Your IMDb watchlist exported as CSV
 
-- Python 3.10 or higher
-- Virtual environment (recommended)
-
-### Setup
-
+### Install Dependencies
 ```bash
 # Clone the repository
-cd /path/to/imdb_recommender_pkg
-
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+git clone https://github.com/brentianpalmer/imdb-recommender.git
+cd imdb-recommender
 
 # Install dependencies
 pip install -e .
-pip install pyarrow pandas numpy scikit-learn toml typer  # Additional dependencies
+
+# Install additional dependencies for validation (optional)
+pip install scikit-surprise
 ```
 
-## Data Requirements
+### Data Setup
+1. Export your IMDb ratings and watchlist as CSV files
+2. Place them in the `data/` directory as:
+   - `data/ratings_normalized.parquet` (your ratings)
+   - `data/watchlist_normalized.parquet` (your watchlist)
+3. Configure paths in `config.toml`
 
-### Input Files
+## 🎯 Quick Start
 
-1. **Ratings CSV** (`ratings.csv`): Your IMDb ratings export
-   - Required columns: `Const`, `Your Rating`, `Title`, `Year`, `Genres`, `IMDb Rating`, `Num Votes`
+### Get Top 10 Movie Recommendations
+```bash
+imdbrec recommend --config config.toml --topk 10 --content-type Movie
+```
 
-2. **Watchlist Excel/CSV** (`watchlist.xlsx`): Your IMDb watchlist export
-   - Required columns: `Const`, `Title`, `Year`, `Genres`, `IMDb Rating`, `Num Votes`
+### Get Top 10 TV Series Recommendations  
+```bash
+imdbrec recommend --config config.toml --topk 10 --content-type "TV Series"
+```
 
-### How to Export from IMDb
+### Get All Recommendations (Mixed Content)
+```bash
+imdbrec recommend --config config.toml --topk 25
+```
 
-1. **Ratings**: Go to IMDb → Your Account → Your Ratings → Export
-2. **Watchlist**: Go to IMDb → Your Account → Your Watchlist → Export
+### Export Watchlist with Predictions
+```bash
+python export_watchlist.py
+```
 
-### Configuration
+## 📁 Project Structure
 
-Create a `config.toml` file:
+```
+imdb-recommender/
+├── imdb_recommender/           # Core recommendation engine
+│   ├── cli.py                  # Command-line interface
+│   ├── recommender_svd.py      # Optimized SVD algorithm
+│   ├── data_io.py              # Data loading and processing
+│   ├── config.py               # Configuration management
+│   └── features.py             # Content-based features
+├── data/                       # Your rating and watchlist data
+│   ├── ratings_normalized.parquet
+│   └── watchlist_normalized.parquet
+├── pretrained_models/          # Optimal hyperparameters
+│   └── hyperparameters.json
+├── config.toml                 # Configuration file
+├── export_watchlist.py         # Export watchlist with predictions
+└── validate_custom_svd.py      # Performance validation
+```
+
+## ⚙️ Configuration
+
+Edit `config.toml` to customize:
 
 ```toml
-[data]
-ratings_csv_path = "data/raw/ratings.csv"
-watchlist_path = "data/raw/watchlist.xlsx"
+[paths]
+ratings_csv_path = "data/ratings_normalized.parquet"
+watchlist_path = "data/watchlist_normalized.parquet"
 data_dir = "data"
 
-[processing]
+[runtime]
 random_seed = 42
 ```
 
-## Usage
+## 🧪 Algorithm Details
 
-### Command Line Interface
+### SVD Optimization
+The recommender uses a custom ALS (Alternating Least Squares) SVD implementation optimized for personal movie recommendations:
 
-The CLI provides several commands for different use cases:
+- **Factors**: 24 latent factors (optimal for ~500 ratings)
+- **Regularization**: 0.05 (low regularization for personal taste learning)
+- **Iterations**: 20 (prevents overfitting while ensuring convergence)
+- **Multi-User Matrix**: Incorporates both your ratings and IMDb global ratings
 
-#### 1. Data Ingestion
+### Why SVD Works
+- **Collaborative Filtering**: Learns patterns from similar users' preferences
+- **Latent Factors**: Discovers hidden taste dimensions (genre preferences, director styles, etc.)
+- **Cold Start Handling**: Uses content features and IMDb ratings for new items
+- **Personalization**: Tailored specifically to your rating history
 
+## 📊 Data Format
+
+### Expected Ratings Format
+```csv
+imdb_const,my_rating,title,year,genres,imdb_rating,title_type
+tt0111161,10,The Shawshank Redemption,1994,Drama,9.3,Movie
+tt0068646,9,The Godfather,1972,Crime Drama,9.2,Movie
+```
+
+### Expected Watchlist Format
+```csv
+imdb_const,title,year,genres,imdb_rating,title_type
+tt0468569,The Dark Knight,2008,Action Crime Drama,9.0,Movie
+tt0137523,Fight Club,1999,Drama,8.8,Movie
+```
+
+## 🔬 Performance Validation
+
+Validate the SVD optimization:
 ```bash
-# Ingest your ratings and watchlist data
-imdbrec ingest --ratings data/raw/ratings.csv --watchlist data/raw/watchlist.xlsx
+python validate_custom_svd.py
 ```
 
-#### 2. General Recommendations
+## 📈 Example Output
 
-```bash
-# Get top 25 recommendations using optimal SVD
-imdbrec recommend --config config.toml --topk 25
+```
+🎬 Top 10 SVD Recommendations:
+================================================================================
+ 1. The Good, the Bad and the Ugly (1966)
+    🎯 Score: 0.858  🎬 Adventure, Drama, Western
+    💡 predicted high personal rating
 
-# Get movie recommendations only
-imdbrec recommend --config config.toml --topk 10 --content-type Movie
+ 2. One Flew Over the Cuckoo's Nest (1975)
+    🎯 Score: 0.847  🎬 Drama
+    💡 predicted high personal rating
 
-# Get TV series recommendations
-imdbrec recommend --config config.toml --topk 10 --content-type "TV Series"
-
-# Seed with specific movies for similar recommendations
-imdbrec recommend --config config.toml --seeds tt0480249,tt0111161 --topk 15
-
-# Balance personal vs global preferences
-imdbrec recommend --config config.toml --user-weight 0.8 --global-weight 0.2 --topk 20
+ 3. The Green Mile (1999)
+    🎯 Score: 0.836  🎬 Crime, Drama, Fantasy, Mystery
+    💡 predicted high personal rating
 ```
 
-#### 3. Top Watchlist Recommendations
+## 🤝 Contributing
 
-```bash
-# Get top 10 movie recommendations from your watchlist
-imdbrec top-watchlist-movies --config config.toml --topk 10
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-# Get top 10 TV recommendations from your watchlist  
-imdbrec top-watchlist-tv --config config.toml --topk 10
-```
+## 📝 License
 
-#### 4. Hyperparameter Tuning
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-```bash
-# Fine-tune SVD hyperparameters for your specific data
-imdbrec hyperparameter-tune --algorithm svd --config config.toml
-```
+## 🙏 Acknowledgments
 
-### Python API
+- **IMDb** for providing the movie database and rating platform
+- **scikit-learn** and **NumPy** for machine learning foundations
+- **Surprise** library for collaborative filtering benchmarks
 
-```python
-from imdb_recommender.config import AppConfig
-from imdb_recommender.data_io import ingest_sources
-from imdb_recommender.recommender_svd import SVDAutoRecommender
-from imdb_recommender.ranker import Ranker
+## 🔗 Related Projects
 
-# Load configuration and data
-cfg = AppConfig.from_file("config.toml")
-res = ingest_sources(cfg.ratings_csv_path, cfg.watchlist_path, cfg.data_dir)
+- [IMDb Data Processing](docs/DATA_PROCESSING.md) - Data preparation guide
+- [Hyperparameter Optimization](REPLICATION_GUIDE.md) - Replication instructions
+- [Performance Analysis](validate_custom_svd.py) - Evaluation methodology
 
-# Create SVD recommender with optimal hyperparameters
-svd = SVDAutoRecommender(res.dataset, random_seed=42)
-# Optimal hyperparameters are already built-in (discovered through rigorous testing)
+---
 
-# Get recommendations
-svd_scores, svd_explanations = svd.score(
-    seeds=[], 
-    user_weight=0.5,  # Optimal weight for personal preferences
-    global_weight=0.1,  # Optimal weight for global popularity  
-    recency=0.0, 
-    exclude_rated=True
-)
-
-# Rank and format results
-ranker = Ranker(random_seed=42)
-recommendations = ranker.top_n(
-    svd_scores, res.dataset, topk=10, 
-    explanations={"svd": svd_explanations}, 
-    exclude_rated=True
-)
-
-# Display results
-for i, rec in enumerate(recommendations, 1):
-    print(f"{i}. {rec['title']} ({rec['year']}) - Score: {rec.get('svd_score', 0):.3f}")
-```
-
-## Algorithm Details
-
-### SVD Matrix Factorization
-
-The core algorithm uses **Singular Value Decomposition** to decompose the user-item rating matrix into lower-dimensional latent factor matrices:
+**Made with ❤️ for movie enthusiasts who want personalized recommendations based on their actual taste.**
 
 - **User Matrix (U)**: Captures user preferences in latent space
 - **Item Matrix (V)**: Captures item characteristics in latent space  
