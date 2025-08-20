@@ -20,3 +20,5 @@ timestamp_iso,imdb_const,action,rating,notes,source,batch_id
 2025-08-17T17:36:01.415701+00:00,tt0068646,watchlist_add,,Test watchlist add - The Godfather,selenium_test,5f38ee03-7b0e-4877-96fd-46c05b54dd3b
 2025-08-17T17:36:09.872647+00:00,tt0111161,rate,9,Test rating - The Shawshank Redemption,selenium_test,ba216b92-c789-450b-a204-3bea80c1f056
 2025-08-17T17:36:09.872802+00:00,tt0068646,watchlist_add,,Test watchlist add - The Godfather,selenium_test,ba216b92-c789-450b-a204-3bea80c1f056
+2025-08-19T20:58:36.386120+00:00,tt9362722,rate,9,Great animation and storytelling,cli,787e2578-d6a4-4a4d-971f-b32c515ccacf
+2025-08-19T20:58:45.815064+00:00,tt6751668,watchlist_add,,,cli,622a9ea1-4f02-472a-9630-9cd6b13b1d62

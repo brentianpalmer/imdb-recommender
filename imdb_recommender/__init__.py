@@ -3,7 +3,6 @@ from .data_io import Dataset, ingest_sources
 from .logger import ActionLogger
 from .ranker import Ranker
 from .recommender_base import Registry
-from .recommender_pop import PopSimRecommender
 from .recommender_svd import SVDAutoRecommender
 
 
@@ -12,8 +11,7 @@ class Recommender:
         self.config = config
         self.dataset = dataset
         self.logger = ActionLogger(self.config.data_dir)
-        Registry.register("pop_sim", PopSimRecommender)
-        Registry.register("svd_auto", SVDAutoRecommender)
+        Registry.register("svd", SVDAutoRecommender)
         self.ranker = Ranker(random_seed=self.config.random_seed)
 
     @classmethod
@@ -37,7 +35,7 @@ class Recommender:
         algos=None,
     ):
         assert self.dataset is not None, "Dataset not loaded. Run ingest or from_config."
-        algos = algos or ["pop_sim", "svd_auto"]
+        algos = algos or ["svd"]
         algo_scores, algo_explain = {}, {}
         for name in algos:
             algo_cls = Registry.get(name)

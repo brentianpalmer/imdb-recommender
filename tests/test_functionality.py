@@ -18,7 +18,6 @@ from imdb_recommender.features import (
 )
 from imdb_recommender.logger import ActionLogger
 from imdb_recommender.ranker import Ranker
-from imdb_recommender.recommender_pop import PopSimRecommender
 from imdb_recommender.recommender_svd import SVDAutoRecommender
 from imdb_recommender.schemas import Recommendation
 
@@ -160,12 +159,12 @@ class TestRecommenders:
         # Create dataset with proper dataclass constructor
         return Dataset(ratings=ratings_df, watchlist=watchlist_df)
 
-    def test_pop_recommender(self, sample_dataset):
-        """Test popularity-based recommender."""
-        recommender = PopSimRecommender(sample_dataset, random_seed=42)
+    def test_svd_recommender(self, sample_dataset):
+        """Test SVD-based recommender."""
+        recommender = SVDAutoRecommender(sample_dataset, random_seed=42)
 
         # Test scoring
-        scores, explanations = recommender.score(["tt1"], 0.7, 0.3, 0.0, exclude_rated=True)
+        scores, explanations = recommender.score(["tt1"], 0.5, 0.1, 0.0, exclude_rated=True)
 
         assert isinstance(scores, dict)
         assert isinstance(explanations, dict)
@@ -175,18 +174,6 @@ class TestRecommenders:
         # Should exclude rated items
         for rated_id in ["tt1", "tt2", "tt3", "tt4", "tt5"]:
             assert rated_id not in scores
-
-    def test_svd_recommender(self, sample_dataset):
-        """Test SVD recommender."""
-        recommender = SVDAutoRecommender(sample_dataset, random_seed=42)
-
-        # Test scoring
-        scores, explanations = recommender.score(["tt1"], 0.7, 0.3, 0.0, exclude_rated=True)
-
-        assert isinstance(scores, dict)
-        assert isinstance(explanations, dict)
-        assert len(scores) > 0
-        assert len(explanations) > 0
 
 
 class TestRanker:
@@ -303,38 +290,33 @@ class TestEndToEndWorkflow:
             result = ingest_sources(ratings_path, watchlist_path, temp_dir)
             dataset = result.dataset
 
-            # 2. Initialize recommenders
-            pop_rec = PopSimRecommender(dataset, random_seed=42)
+            # 2. Initialize SVD recommender
             svd_rec = SVDAutoRecommender(dataset, random_seed=42)
 
             # Get a seed from the ratings
             seed_ids = dataset.ratings["imdb_const"].head(1).tolist()
 
-            # 3. Generate recommendations
-            pop_scores, pop_expl = pop_rec.score(seed_ids, 0.7, 0.3, 0.0, exclude_rated=True)
-            svd_scores, svd_expl = svd_rec.score(seed_ids, 0.7, 0.3, 0.0, exclude_rated=True)
+            # 3. Generate recommendations using optimal weights
+            svd_scores, svd_expl = svd_rec.score(seed_ids, 0.5, 0.1, 0.0, exclude_rated=True)
 
-            # 4. Blend recommendations
+            # 4. Get top recommendations directly from SVD
             ranker = Ranker()
-            blended = ranker.blend({"pop": pop_scores, "svd": svd_scores})
-
-            # 5. Get top recommendations
-            recs = ranker.top_n(
-                blended,
+            recommendations = ranker.top_n(
+                svd_scores,
                 dataset,
                 topk=5,
-                explanations={"pop": pop_expl, "svd": svd_expl},
+                explanations={"svd": svd_expl},
                 exclude_rated=True,
             )
 
             # Verify results
-            assert len(recs) <= 5
-            assert all(isinstance(rec, Recommendation) for rec in recs)
-            assert all(rec.score > 0 for rec in recs)
-            assert all(rec.imdb_const for rec in recs)
+            assert len(recommendations) <= 5
+            assert all(isinstance(rec, Recommendation) for rec in recommendations)
+            assert all(rec.score > 0 for rec in recommendations)
+            assert all(rec.imdb_const for rec in recommendations)
 
             # Verify recommendations are sorted by score (descending)
-            scores = [rec.score for rec in recs]
+            scores = [rec.score for rec in recommendations]
             assert scores == sorted(scores, reverse=True)
 
 
