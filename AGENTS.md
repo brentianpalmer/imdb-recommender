@@ -1,278 +1,186 @@
-# 🤖 AI Agents for IMDb Recommender
+# Agents for imdb-recommender
 
-This document outlines the AI agents and automated workflows used in the development and maintenance of the IMDb Personal Recommender project.
+## 0. Scope
+**Purpose**: IMDb personal recommendation system with SVD collaborative filtering and ElasticNet feature engineering approaches. Learns from user ratings/watchlist to generate personalized movie/TV recommendations with scientific validation.
 
-## 🎯 Project Overview
+**Stack**: Python 3.10+, scikit-learn, pandas, numpy, typer CLI, pytest, GitHub Actions CI/CD
 
-The IMDb Personal Recommender leverages AI agents for various aspects of development, analysis, and optimization. This includes code generation, performance validation, hyperparameter tuning, and documentation maintenance.
+**Out of scope**: Real-time inference, web UI, production deployment, external API integrations, user authentication
 
-## 🤖 Agent Implementations
+## 1. Agents
+| Agent | Mandate | Triggers | Deliverables | Autonomy | Stop |
+|---|---|---|---|---|---|
+| Planner | Analyze task requirements, create implementation plan with acceptance criteria | Task assignment, feature request | Plan.md (YAML schema) | Low | Plan validated & approved |
+| Coder | Implement features/fixes per plan, maintain code quality standards | Plan approved, bug report | Source code + docstrings | Medium | All tests pass locally |
+| Tester | Write/update tests, ensure coverage, validate functionality | New code merged, bug fix | Test files + coverage report | Medium | Coverage ≥ 85% |
+| Linter | Code quality checks, style enforcement (warnings only) | Code changes pushed | Lint report in CI | Low | Report generated |
+| Reviewer | Security audit, risk assessment, code review | Pull request opened | Review.md | Low | Security/performance risks documented |
 
-### 1. Cross Validation Agent
+## 2. Conventions
+- **File naming**: snake_case for Python files, PascalCase for classes
+- **Branch naming**: `feature/description`, `bugfix/description`, `hotfix/description`
+- **Commit messages**: Conventional commits format (`feat:`, `fix:`, `docs:`, `test:`)
+- **Documentation**: Docstrings for all public functions/classes, README updates for user-facing changes
+- **Error handling**: Graceful degradation, informative error messages, proper exception types
 
-**Purpose**: Automated model validation and performance comparison
-
-**Capabilities**:
-- Runs stratified K-fold cross validation for both ElasticNet and SVD models
-- Prevents data leakage through proper train/test separation
-- Generates comprehensive performance reports with statistical significance
-- Handles hyperparameter grid search automatically
-
-**Implementation**:
-- `elasticnet_cross_validation.py` - ElasticNet validation agent
-- `fine_tune_svd_corrected.py` - SVD validation agent
-- `analyze_elasticnet_results.py` - Results analysis agent
-
-**Key Features**:
-```python
-# Example: ElasticNet CV Agent
-python elasticnet_cross_validation.py \
-  --n_splits 5 \
-  --alphas "0.01,0.1,1.0" \
-  --l1_ratios "0.1,0.5,0.9"
-```
-
-### 2. Feature Engineering Agent
-
-**Purpose**: Automated feature extraction and transformation
-
-**Capabilities**:
-- Extracts 106+ features from raw IMDb data
-- Handles missing data intelligently
-- Applies domain-specific transformations (log scaling, temporal features)
-- Selects optimal features through L1 regularization
-
-**Implementation**:
-- `engineer_features()` function in `elasticnet_cross_validation.py`
-- Temporal pattern extraction
-- Genre and director encoding
-- Content metadata processing
-
-**Generated Features**:
-- **Content**: Genres (multi-hot), directors (top-K), title types
-- **Temporal**: Rating patterns, release timing, behavioral signals  
-- **Numerical**: IMDb rating, vote counts, runtime, derived metrics
-- **Engineered**: Log transformations, decade groupings, interaction terms
-
-### 3. Model Optimization Agent
-
-**Purpose**: Automated hyperparameter tuning and model selection
-
-**Capabilities**:
-- Grid search across hyperparameter spaces
-- Bayesian optimization for complex parameter interactions
-- Performance monitoring with early stopping
-- Model serialization and versioning
-
-**Implementation**:
-- `train_optimal_elasticnet.py` - Optimal model training
-- Hyperparameter grid definition
-- Performance validation pipeline
-- Model persistence and loading
-
-**Optimization Process**:
-```python
-# Agent searches 25 combinations
-alphas = [0.001, 0.01, 0.1, 1.0, 3.0]
-l1_ratios = [0.1, 0.3, 0.5, 0.7, 0.9]
-# Result: α=0.1, l1_ratio=0.1 optimal
-```
-
-### 4. Recommendation Generation Agent
-
-**Purpose**: Personalized movie recommendation generation
-
-**Capabilities**:
-- Loads trained models and applies to new data
-- Handles both ratings prediction and watchlist recommendations
-- Provides confidence scores and explanations
-- Filters inappropriate content and future releases
-
-**Implementation**:
-- `elasticnet_recommender.py` - Main recommendation agent
-- Real-time prediction pipeline
-- Content filtering and ranking
-- Export functionality for integration
-
-**Usage Example**:
+## 3. Tools
+### shell
+**Use**: Package management, git operations, test execution, data processing scripts
+**Examples**: 
 ```bash
-python elasticnet_recommender.py \
-  --ratings_file data/raw/ratings.csv \
-  --watchlist_file data/raw/watchlist.xlsx \
-  --topk 10
+pip install -e .
+pytest tests/ -q --cov=imdb_recommender
+git commit -m "feat: add ElasticNet cross-validation"
+python elasticnet_recommender.py --ratings_file data/raw/ratings.csv --watchlist_file data/raw/watchlist.xlsx --topk 10
+```
+**Limits**: No sudo commands, no system modifications, max 30s runtime for CI commands
+
+### file_io
+**Use**: Source code editing, configuration updates, data file processing, report generation
+**Examples**: Reading CSV files, updating pyproject.toml, creating test fixtures, generating documentation
+**Limits**: No binary file editing, max 10MB file size, preserve file permissions
+
+### http
+**Use**: Package downloads via pip, GitHub API for CI status (read-only)
+**Examples**: `pip install scikit-learn`, fetching GitHub release info
+**Limits**: No external API calls requiring auth, no data uploads, PyPI/GitHub only
+
+## 4. Context Rules
+**Must read**: README.md, pyproject.toml, src test files, CI configuration, Plan.md if exists
+**Ignore**: Cache directories (__pycache__, .ruff_cache), build artifacts, .git/, data/raw/ (PII)
+**Priority**: Core modules (cli.py, recommender_*.py, data_io.py) > utilities > examples
+
+## 5. I/O Contracts
+### Plan.md (YAML)
+```yaml
+task: "string - Brief task description"
+objectives: 
+  - "Specific measurable goal 1"
+  - "Specific measurable goal 2"
+acceptance:
+  - "Test case 1 passes"
+  - "Performance metric X achieved"
+  - "Documentation updated"
+changes:
+  - path: "file/path.py"
+    ops: ["create", "modify", "delete"]
+  - path: "tests/test_file.py" 
+    ops: ["create", "modify"]
+risks:
+  - "Performance degradation risk"
+  - "Breaking change impact"
+rollback: "Specific rollback procedure"
 ```
 
-### 5. Validation and Testing Agent
+### Review.md
+**Sections**: 
+- **Summary**: Change overview, files modified, test results
+- **Diff risks**: Breaking changes, performance impacts, edge cases
+- **Security**: Input validation, data handling, dependency updates
+- **Open questions**: Unresolved decisions, future considerations
 
-**Purpose**: Automated testing and quality assurance
+### Test Reports
+**Location**: `/reports/coverage.xml`, `/reports/pytest.html`
+**Format**: JUnit XML for CI integration, HTML for detailed review
 
-**Capabilities**:
-- Unit testing for all model components
-- Integration testing for end-to-end workflows
-- Performance regression detection
-- Data quality validation
+## 6. Protocol
+1. **Plan** → Create Plan.md with objectives, risks, rollback
+2. **Code** → Implement changes per plan, add docstrings
+3. **Test** → Write/update tests, ensure coverage ≥ 85%
+4. **Lint** → Run quality checks (warnings acceptable)
+5. **Full Test** → Execute complete test suite locally
+6. **Review** → Generate Review.md, document risks
+7. **Stop** → Merge when all quality gates pass
 
-**Implementation**:
-- `debug_elasticnet_cv.py` - Diagnostic testing
-- Automated error detection and reporting
-- Performance benchmarking
-- Data consistency checks
+**Stop conditions**: Test failures, security risks unresolved, coverage below threshold
+**Bail-out rules**: After 3 failed iterations, escalate to human review
 
-## 🔄 Agent Workflows
+## 7. Guardrails
+- **Secrets**: No API keys, credentials, or PII in code. Use environment variables with .env.example template
+- **Licenses**: MIT license only, no GPL dependencies, document all third-party code
+- **PII**: Never log/store user data from IMDb exports, use fixtures in tests
+- **Migrations**: Backwards-compatible data schema changes, migration scripts in data/migrations/
 
-### Development Workflow
+## 8. Quality Gates
+- **Lint**: 0 errors required (ruff check), warnings acceptable
+- **Coverage**: ≥ 85% test coverage (pytest-cov)
+- **Typecheck**: Not enforced (no mypy requirement)
+- **Security**: Clean bandit scan or documented waiver
+- **Docs**: README.md updated for user-facing changes, docstrings for new public APIs
 
-1. **Feature Engineering Agent** extracts features from raw data
-2. **Cross Validation Agent** validates multiple model configurations
-3. **Model Optimization Agent** finds optimal hyperparameters
-4. **Validation Agent** ensures quality and correctness
-5. **Documentation Agent** updates reports and documentation
+## 9. Error/Retry Discipline
+**Backoff policy**: 1s, 5s, 15s delays for CI retries
+**Bail-out rules**: Max 3 attempts for flaky tests, immediate fail for security issues
+**Error categories**: 
+- Transient (network, CI environment) → retry
+- Logic (test failures, lint errors) → fix required
+- Blocking (security, data corruption) → immediate escalation
 
-### Production Workflow
+## 10. CI Integration
+**Required checks**: 
+- `test` job (pytest on Python 3.12)
+- `lint` job (ruff + black, continue-on-error)
 
-1. **Data Ingestion Agent** processes new IMDb exports
-2. **Model Loading Agent** loads optimal trained model
-3. **Recommendation Agent** generates personalized suggestions
-4. **Quality Control Agent** validates outputs
-5. **Export Agent** delivers recommendations in required format
+**Artifacts**: 
+- coverage.xml → Codecov
+- Test results → GitHub Actions summary
 
-### Research Workflow
+**Branch protection**: All checks must pass for main branch
 
-1. **Experiment Agent** defines new model configurations
-2. **Validation Agent** runs controlled experiments
-3. **Analysis Agent** compares performance metrics
-4. **Reporting Agent** generates scientific summaries
-5. **Decision Agent** selects best approaches for production
-
-## 🎯 Agent Performance
-
-### ElasticNet Agent Results
-- **Validation**: 5-fold stratified cross validation
-- **Performance**: RMSE 1.386 ± 0.095, R² 0.234 ± 0.055
-- **Features**: 106 engineered → 36 selected (automatic)
-- **Speed**: ~2 minutes for full cross validation
-
-### SVD Agent Results  
-- **Validation**: 3-fold cross validation (corrected)
-- **Performance**: RMSE 1.618 ± 0.053
-- **Configuration**: 24 factors, 0.05 regularization
-- **Speed**: ~30 seconds for validation
-
-### Comparison Agent Results
-- **Winner**: ElasticNet by 14.3% RMSE improvement
-- **Reliability**: Consistent across multiple validation runs
-- **Robustness**: Handles edge cases and missing data
-
-## 🛠️ Agent Configuration
-
-### Environment Setup
+## 11. Local Runbook
 ```bash
-# Required dependencies for all agents
-pip install scikit-learn pandas numpy
-pip install -e .  # Install package
+# Setup
+python -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+pip install -e .
+pip install scikit-learn pytest pytest-cov ruff black
 
-# Set up data directory
-mkdir -p data/raw results
+# Development
+pytest tests/ -q                    # Run tests
+pytest --cov=imdb_recommender     # Coverage
+ruff check .                       # Lint
+black .                           # Format
+pre-commit run --all-files        # Full check
+
+# Usage
+imdbrec recommend --config config.toml --topk 10
+python elasticnet_recommender.py --ratings_file data/raw/ratings.csv --watchlist_file data/raw/watchlist.xlsx
 ```
 
-### Configuration Files
-- `config.toml` - Global configuration
-- `pyproject.toml` - Package and dependency management
-- Environment variables for API keys and paths
+## 12. Examples
+**Example A**: Add new recommendation algorithm
+- Plan.md: Add SVD++ algorithm with matrix factorization improvements
+- Files: `imdb_recommender/recommender_svdpp.py`, `tests/test_svdpp.py`, update CLI
+- Tests: Cross-validation accuracy ≥ current SVD, performance benchmarks
+- Review: Memory usage impact, backwards compatibility
 
-### Execution Examples
-```bash
-# Run full validation pipeline
-python elasticnet_cross_validation.py --n_splits 5
+**Example B**: Bug fix for missing IMDb ratings
+- Plan.md: Handle null ratings in watchlist processing 
+- Files: `imdb_recommender/data_io.py`, `tests/test_data_io.py`
+- Tests: Edge case coverage for missing/invalid ratings
+- Review: Data integrity validation, graceful degradation
 
-# Train optimal model
-python train_optimal_elasticnet.py --save_model
-
-# Generate recommendations  
-python elasticnet_recommender.py --topk 10
-
-# Compare all methods
-python analyze_elasticnet_results.py
-```
-
-## 🚀 Future Agent Enhancements
-
-### Planned Agents
-1. **AutoML Agent**: Automated model architecture search
-2. **Drift Detection Agent**: Monitors model performance degradation
-3. **A/B Testing Agent**: Compares recommendation strategies
-4. **Explanation Agent**: Generates human-readable explanations
-5. **Deployment Agent**: Handles model versioning and rollouts
-
-### Advanced Features
-- **Multi-objective optimization**: Balance accuracy, diversity, and novelty
-- **Online learning**: Continuous model updates with new ratings
-- **Cold start handling**: Special agents for new users and items
-- **Ensemble methods**: Combines multiple agent predictions
-- **Real-time inference**: Sub-second recommendation generation
-
-## 📊 Agent Monitoring
-
-### Performance Metrics
-- **Accuracy**: RMSE, R², MAE across validation sets
-- **Speed**: Training time, inference latency
-- **Resource Usage**: Memory consumption, CPU utilization
-- **Reliability**: Success rate, error handling
-
-### Monitoring Dashboard
-- Real-time performance tracking
-- Agent execution logs and debugging
-- Model performance over time
-- Data quality metrics
-
-### Alerts and Notifications
-- Performance degradation detection
-- Data pipeline failures
-- Model accuracy below thresholds
-- Resource utilization anomalies
-
-## 🔒 Agent Security and Ethics
-
-### Data Privacy
-- No personal information stored or transmitted
-- Only movie ratings and preferences processed
-- Local execution, no external API calls required
-- Transparent feature engineering and model decisions
-
-### Bias Mitigation
-- Balanced sampling across rating distributions
-- Genre and demographic fairness validation
-- Explainable AI for recommendation reasoning
-- Regular bias auditing and correction
-
-### Robustness
-- Input validation and sanitization
-- Graceful error handling and recovery
-- Model uncertainty quantification
-- Adversarial input detection
+## 13. Version
+**Agents.md v1.0.0**, updated 2025-08-20
 
 ---
 
-## 📝 Agent Development Guidelines
-
-### Code Quality
-- Comprehensive unit tests for all agents
-- Type hints and documentation
-- Consistent error handling
-- Performance optimization
-
-### Integration
-- Standardized input/output formats
-- Modular agent design
-- Clear API contracts
-- Version compatibility
-
-### Maintenance
-- Regular performance validation
-- Dependency updates and security patches
-- Documentation synchronization
-- User feedback integration
+# Common failure points to avoid
+- **Vague deliverables**: Fix with explicit test cases and performance metrics in Plan.md
+- **Tool drift**: Pin exact commands in runbook, validate against pyproject.toml
+- **Secret leakage**: Use fixtures for test data, never commit real IMDb exports
+- **Non-reproducible tests**: Set random seeds, use deterministic test fixtures
+- **Excess autonomy**: Require human approval for breaking changes, security issues
 
 ---
 
-*This document reflects the current state of AI agents in the IMDb Personal Recommender project as of August 2025. Agents are continuously evolving to improve recommendation quality and user experience.*
+# Acceptance checklist (keep at bottom of file)
+Copy/paste and use in PRs.
+
+- [ ] Plan.md exists with measurable acceptance criteria
+- [ ] All modified files have tests covering ≥ 85% of changed lines
+- [ ] Lint/security checks pass locally and in CI (warnings acceptable)
+- [ ] Docs updated: README usage examples, API docstrings
+- [ ] Review.md present with security/performance risk assessment
+- [ ] No secrets, PII, or large data files committed
+- [ ] Cross-validation results documented for ML changes
