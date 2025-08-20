@@ -8,13 +8,13 @@
 **Out of scope**: Real-time inference, web UI, production deployment, external API integrations, user authentication
 
 ## 1. Agents
-| Agent | Mandate | Triggers | Deliverables | Autonomy | Stop |
-|---|---|---|---|---|---|
-| Planner | Analyze task requirements, create implementation plan with acceptance criteria | Task assignment, feature request | Plan.md (YAML schema) | Low | Plan validated & approved |
-| Coder | Implement features/fixes per plan, maintain code quality standards | Plan approved, bug report | Source code + docstrings | Medium | All tests pass locally |
-| Tester | Write/update tests, ensure coverage, validate functionality | New code merged, bug fix | Test files + coverage report | Medium | Coverage ≥ 85% |
-| Linter | Code quality checks, style enforcement (warnings only) | Code changes pushed | Lint report in CI | Low | Report generated |
-| Reviewer | Security audit, risk assessment, code review | Pull request opened | Review.md | Low | Security/performance risks documented |
+| Agent    | Mandate                                                                        | Triggers                         | Deliverables                 | Autonomy | Stop                                  |
+| -------- | ------------------------------------------------------------------------------ | -------------------------------- | ---------------------------- | -------- | ------------------------------------- |
+| Planner  | Analyze task requirements, create implementation plan with acceptance criteria | Task assignment, feature request | Plan.md (YAML schema)        | Low      | Plan validated & approved             |
+| Coder    | Implement features/fixes per plan, maintain code quality standards             | Plan approved, bug report        | Source code + docstrings     | Medium   | All tests pass locally                |
+| Tester   | Write/update tests, ensure coverage, validate functionality                    | New code merged, bug fix         | Test files + coverage report | Medium   | Coverage ≥ 85%                        |
+| Linter   | Code quality checks, style enforcement (warnings only)                         | Code changes pushed              | Lint report in CI            | Low      | Report generated                      |
+| Reviewer | Security audit, risk assessment, code review                                   | Pull request opened              | Review.md                    | Low      | Security/performance risks documented |
 
 ## 2. Conventions
 - **File naming**: snake_case for Python files, PascalCase for classes
