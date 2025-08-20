@@ -16,8 +16,12 @@ A high-performance movie and TV show recommendation system that learns your pers
 
 ## 📊 Performance
 
-- **High Accuracy**: Optimized SVD configuration delivers superior prediction quality
+- **Realistic RMSE**: 1.62 ± 0.05 (honest evaluation without data leakage)
+- **Optimized Configuration**: 24 factors, 0.05 regularization, 20 iterations  
 - **Fast Inference**: Generate recommendations for 500+ items in seconds
+- **Validated Methodology**: Proper cross-validation with complete train/test separation
+
+> **⚠️ Important Note**: Earlier claims of 0.54 RMSE were due to data leakage in cross-validation. See [`DATA_LEAKAGE_ANALYSIS.md`](DATA_LEAKAGE_ANALYSIS.md) for details.
 ## 🛠️ Installation
 
 ### Prerequisites
@@ -107,15 +111,23 @@ random_seed = 42
 The recommender uses a custom ALS (Alternating Least Squares) SVD implementation optimized for personal movie recommendations:
 
 - **Factors**: 24 latent factors (optimal for ~500 ratings)
-- **Regularization**: 0.05 (low regularization for personal taste learning)
+- **Regularization**: 0.05 (low regularization for personal taste learning)  
 - **Iterations**: 20 (prevents overfitting while ensuring convergence)
 - **Multi-User Matrix**: Incorporates both your ratings and IMDb global ratings
 
+### Performance Validation
+Rigorous cross-validation results (corrected methodology):
+
+- **RMSE**: 1.6179 ± 0.0533 (realistic single-user collaborative filtering performance)
+- **R² Score**: -0.0575 (challenging single-user scenario)
+- **Validation Method**: 3-fold cross-validation with proper train/test separation
+- **Data Leakage**: Eliminated (see [`DATA_LEAKAGE_ANALYSIS.md`](DATA_LEAKAGE_ANALYSIS.md))
+
 ### Why SVD Works
-- **Collaborative Filtering**: Learns patterns from similar users' preferences
+- **Collaborative Filtering**: Learns patterns from your rating history
 - **Latent Factors**: Discovers hidden taste dimensions (genre preferences, director styles, etc.)
 - **Cold Start Handling**: Uses content features and IMDb ratings for new items
-- **Personalization**: Tailored specifically to your rating history
+- **Personalization**: Tailored specifically to your rating patterns
 
 ## 📊 Data Format
 
@@ -178,92 +190,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔗 Related Projects
 
-- [IMDb Data Processing](docs/DATA_PROCESSING.md) - Data preparation guide
-- [Hyperparameter Optimization](REPLICATION_GUIDE.md) - Replication instructions
-- [Performance Analysis](validate_custom_svd.py) - Evaluation methodology
+- [Data Leakage Analysis](DATA_LEAKAGE_ANALYSIS.md) - Critical validation methodology correction
+- [Fine-tuning Results](fine_tune_svd_corrected.py) - Corrected hyperparameter optimization 
+- [Performance Validation](validate_custom_svd.py) - Evaluation methodology
 
 ---
 
 **Made with ❤️ for movie enthusiasts who want personalized recommendations based on their actual taste.**
-
-- **User Matrix (U)**: Captures user preferences in latent space
-- **Item Matrix (V)**: Captures item characteristics in latent space  
-- **Prediction**: `rating = U[user] · V[item]`
-
-### Optimized Hyperparameters
-
-Through comprehensive grid search and cross-validation:
-
-- **n_factors**: 8 latent factors (optimal balance of expressiveness vs. overfitting)
-- **reg_param**: 0.01 regularization (minimal regularization for best fit)
-- **n_iter**: 10 iterations (efficient convergence without overtraining)
-- **user_weight**: 0.5 (optimal balance of personal preferences)
-- **global_weight**: 0.1 (minimal but beneficial global popularity signal)
-
-### Performance Metrics
-
-Rigorous testing results:
-
-- **RMSE**: 0.828 (excellent rating prediction accuracy)
-- **R² Score**: 0.593 (explains 59.3% of rating variance)
-- **MAE**: 0.579 (mean absolute error)
-- **Training time**: ~663 seconds (acceptable for offline training)
-- **Prediction time**: ~0.29 seconds (fast real-time inference)
-
-## Project Structure
-
-```
-imdb_recommender_pkg/
-├── imdb_recommender/
-│   ├── __init__.py
-│   ├── cli.py                  # Command line interface
-│   ├── config.py              # Configuration management
-│   ├── data_io.py             # Data ingestion and processing
-│   ├── recommender_svd.py     # Core SVD algorithm
-│   ├── recommender_base.py    # Base recommender class
-│   ├── ranker.py              # Result ranking and formatting
-│   ├── features.py            # Feature engineering utilities
-│   ├── hyperparameter_tuning.py # Automated hyperparameter optimization
-│   ├── cross_validation.py    # Cross-validation strategies
-│   ├── sklearn_integration.py # Scikit-learn compatibility
-│   ├── logger.py              # Action logging
-│   └── schemas.py             # Data schemas and types
-├── tests/                     # Test suite
-├── data/                      # Data directory
-├── config.toml               # Configuration file
-├── pyproject.toml            # Package configuration
-└── README.md                 # This file
-```
-
-## Testing
-
-Run the test suite to verify functionality:
-
-```bash
-# Run all tests
-python -m pytest tests/
-
-# Run specific test categories
-python -m pytest tests/test_functionality.py  # Core functionality
-python -m pytest tests/test_performance.py   # Performance benchmarks
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes and add tests
-4. Ensure all tests pass (`python -m pytest`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- IMDb for providing the rating and watchlist export functionality
-- The collaborative filtering and matrix factorization research community
-- Scikit-learn for providing excellent machine learning tools and patterns
