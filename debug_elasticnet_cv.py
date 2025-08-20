@@ -44,7 +44,8 @@ def main():
 
     # Check target distribution
     print(
-        f"   Target stats: mean={y.mean():.2f}, std={y.std():.2f}, range=[{y.min():.1f}, {y.max():.1f}]"
+        f"   Target stats: mean={y.mean():.2f}, std={y.std():.2f}, "
+        f"range=[{y.min():.1f}, {y.max():.1f}]"
     )
 
     # Check for extreme values in features
@@ -111,7 +112,8 @@ def main():
     print(f"      Std raw pred range: {y_pred_std_raw.min():.2f} to {y_pred_std_raw.max():.2f}")
     print(f"      Standardized scaled: RMSE={rmse_std_scaled:.3f}, R²={r2_std_scaled:.3f}")
     print(
-        f"      Std scaled pred range: {y_pred_std_scaled.min():.2f} to {y_pred_std_scaled.max():.2f}"
+        f"      Std scaled pred range: {y_pred_std_scaled.min():.2f} to "
+        f"{y_pred_std_scaled.max():.2f}"
     )
 
     # Baseline comparison
