@@ -105,6 +105,7 @@ class TestSeleniumIntegration:
         """Test that the selenium replay script exists and has correct structure."""
         selenium_file = (
             Path(__file__).parent.parent
+            / "src"
             / "imdb_recommender"
             / "selenium_stub"
             / "replay_from_csv.py"
@@ -215,6 +216,7 @@ class TestSeleniumConfigSafety:
         # Read the selenium file content directly
         selenium_file = (
             Path(__file__).parent.parent
+            / "src"
             / "imdb_recommender"
             / "selenium_stub"
             / "replay_from_csv.py"
@@ -248,6 +250,7 @@ class TestSeleniumConfigSafety:
         # Read source to verify security options are configured
         selenium_file = (
             Path(__file__).parent.parent
+            / "src"
             / "imdb_recommender"
             / "selenium_stub"
             / "replay_from_csv.py"
