@@ -37,8 +37,10 @@ def main():
     # ElasticNet Recommendations
     ratings_file = "data/raw/ratings.csv"
     watchlist_file = "data/raw/watchlist.xlsx"
-    en_cmd = (f"{sys.executable} elasticnet_recommender.py "
-              f"--ratings_file {ratings_file} --watchlist_file {watchlist_file} --topk 10")
+    en_cmd = (
+        f"{sys.executable} elasticnet_recommender.py "
+        f"--ratings_file {ratings_file} --watchlist_file {watchlist_file} --topk 10"
+    )
     run_command(en_cmd, "ElasticNet Feature Engineering Recommendations")
 
     print("\n" + "=" * 60)

@@ -56,8 +56,8 @@ def load_and_analyze_results():
     print(f"   ElasticNet RMSE: {elasticnet_rmse:.4f}")
     print(f"   SVD RMSE: {svd_rmse:.4f}")
     print(f"   Baseline (mean) RMSE: {baseline_rmse:.4f}")
-    svd_improvement = ((svd_rmse - elasticnet_rmse) / svd_rmse * 100)
-    baseline_improvement = ((baseline_rmse - elasticnet_rmse) / baseline_rmse * 100)
+    svd_improvement = (svd_rmse - elasticnet_rmse) / svd_rmse * 100
+    baseline_improvement = (baseline_rmse - elasticnet_rmse) / baseline_rmse * 100
     print(f"   ElasticNet vs SVD: {svd_improvement:+.1f}% improvement")
     print(f"   ElasticNet vs Baseline: {baseline_improvement:+.1f}% improvement")
 
