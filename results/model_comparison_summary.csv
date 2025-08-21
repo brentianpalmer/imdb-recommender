@@ -1,4 +1,0 @@
-Model,RMSE,R²,Features,Approach,Hyperparameters
-ElasticNet (Best),1.3859,0.2344,106 Engineered,Linear Regression,"α=0.1, l1=0.1"
-SVD,1.618,N/A,Latent Factors,Matrix Factorization,Various
-Baseline (Mean),1.533,0.0,None,Constant Predictor,None
