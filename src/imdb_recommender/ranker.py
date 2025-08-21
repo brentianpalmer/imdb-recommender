@@ -52,12 +52,14 @@ class Ranker:
                     if cid in expl_map and expl_map[cid]:
                         why_parts.append(expl_map[cid])
             why = "; ".join(why_parts) or "blended score from multiple models"
+            title_val = row.get("title")
+            genres_val = row.get("genres")
             out.append(
                 Recommendation(
                     imdb_const=cid,
-                    title=row.get("title"),
+                    title="" if pd.isna(title_val) else str(title_val),
                     year=int(row.get("year")) if pd.notna(row.get("year")) else None,
-                    genres=row.get("genres"),
+                    genres="" if pd.isna(genres_val) else str(genres_val),
                     score=float(s),
                     why_explainer=why,
                 )
