@@ -17,16 +17,20 @@ def set_global_seed(seed: int | None = None) -> int:
     Parameters
     ----------
     seed:
-        Seed to use. When ``None``, ``IMDBREC_SEED`` environment variable is
-        read with a fallback of ``1234``.
+        Seed to use. When ``IMDBREC_SEED`` environment variable is set, its
+        value takes precedence. Otherwise ``seed`` is used, falling back to
+        ``1234`` when ``None``.
 
     Returns
     -------
     int
         The seed value that was applied.
     """
-    if seed is None:
-        seed = int(os.getenv(ENV_VAR, DEFAULT_SEED))
+    env_seed = os.getenv(ENV_VAR)
+    if env_seed is not None:
+        seed = int(env_seed)
+    elif seed is None:
+        seed = DEFAULT_SEED
 
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
