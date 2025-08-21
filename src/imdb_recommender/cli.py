@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import enum
+
+import pandas as pd
 import typer
 
 from .config import AppConfig
 from .data_io import ingest_sources
 
 # from .hyperparameter_tuning import HyperparameterTuningPipeline  # Temporarily disabled
+from .pipeline import filter_by_content_type
 from .ranker import Ranker
 from .recommender_svd import SVDAutoRecommender
 
@@ -25,6 +29,12 @@ def ingest(
     )
 
 
+class ContentType(str, enum.Enum):
+    all = "all"
+    movies = "movies"
+    tv = "tv"
+
+
 @app.command()
 def recommend(
     seeds: str = typer.Option("", help="Comma-separated IMDb IDs to base recommendations on"),
@@ -37,8 +47,11 @@ def recommend(
     ),
     recency: float = typer.Option(0.0, help="Recency bias factor"),
     exclude_rated: bool = typer.Option(True, help="Exclude already rated items"),
-    content_type: str | None = typer.Option(
-        None, "--content-type", help="Filter by content type (Movie, 'TV Series', etc.)"
+    content_type: ContentType = typer.Option(  # noqa: B008
+        ContentType.all,
+        "--content-type",
+        case_sensitive=False,
+        help="Filter recommendations by content type",
     ),
     ratings: str | None = typer.Option(None, help="Path to ratings CSV file"),
     watchlist: str | None = typer.Option(None, help="Path to watchlist CSV file"),
@@ -73,27 +86,41 @@ def recommend(
         typer.echo("❌ No recommendations found")
         return
 
-    # Apply content type filter if specified
-    if content_type:
-        catalog_df = res.dataset.catalog.set_index("imdb_const")
-        filtered_scores = {}
-        for imdb_id, score in svd_scores.items():
-            if imdb_id in catalog_df.index:
-                item_type = catalog_df.loc[imdb_id, "title_type"]
-                if item_type == content_type:
-                    filtered_scores[imdb_id] = score
-        svd_scores = filtered_scores
-        typer.echo(f"🎬 Filtered for content type: {content_type}")
-
-    # Rank and get top recommendations
+    # Rank without content-type filtering to get global order
     ranker = Ranker(random_seed=42)
-    recommendations = ranker.top_n(
+    all_recs = ranker.top_n(
         svd_scores,
         res.dataset,
-        topk=topk,
+        topk=len(svd_scores),
         explanations={"svd": svd_explanations},
         exclude_rated=exclude_rated,
     )
+
+    catalog = res.dataset.catalog
+    if content_type is not ContentType.all:
+        if "title_type" not in catalog.columns or catalog["title_type"].isna().all():
+            typer.echo("❌ titleType metadata required for content-type filtering.", err=True)
+            raise typer.Exit(1)
+
+    title_map = dict(zip(catalog.get("imdb_const"), catalog.get("title_type"), strict=False))
+    df = pd.DataFrame(
+        {
+            "imdb_const": [r.imdb_const for r in all_recs],
+            "titleType": [title_map.get(r.imdb_const) for r in all_recs],
+        }
+    )
+
+    try:
+        df = filter_by_content_type(df, content_type.value)
+    except ValueError as exc:
+        typer.echo(f"❌ {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    allowed = set(df["imdb_const"].tolist())
+    recommendations = [r for r in all_recs if r.imdb_const in allowed][:topk]
+
+    if content_type is not ContentType.all:
+        typer.echo(f"🎬 Filtered for content type: {content_type.value}")
 
     if not recommendations:
         typer.echo("❌ No recommendations after filtering")
