@@ -31,6 +31,7 @@ from sklearn.model_selection import StratifiedKFold, TimeSeriesSplit
 
 from .data_io import Dataset
 from .recommender_base import RecommenderAlgo
+from .utils.repro import set_global_seed
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -481,7 +482,7 @@ def compare_models_cv(
     recommender_configs: dict[str, dict[str, Any]],
     cv_strategy: str = "stratified",
     n_splits: int = 5,
-    random_state: int = 42,
+    random_state: int | None = None,
 ) -> dict[str, CrossValidationResult]:
     """
     Compare multiple recommender models using K-fold cross-validation.
@@ -491,11 +492,14 @@ def compare_models_cv(
         recommender_configs: Dict of {model_name: {class, params, score_params}}
         cv_strategy: "stratified" or "temporal"
         n_splits: Number of CV folds
-        random_state: Random seed
+        random_state: Random seed. When ``None``, ``set_global_seed`` uses the
+            ``IMDBREC_SEED`` environment variable with a fallback of ``1234``.
 
     Returns:
         Dict of {model_name: CrossValidationResult}
     """
+    random_state = set_global_seed(random_state)
+
     print("🏆 Model Comparison via K-Fold Cross-Validation")
     print("=" * 60)
 

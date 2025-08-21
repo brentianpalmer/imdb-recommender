@@ -79,4 +79,9 @@ Reproduce locally with the commands in this runbook.
 - **Missing extras**: ensure dev/test extras installed with `pip install -e ".[dev,test]"`
 - **Path errors**: supply `--ratings-file` and `--watchlist-file` or set env vars
 - **Fixture not found**: add sample data under `tests/fixtures/data`
-- **Non‑determinism**: set `RANDOM_SEED` in `.env` or CLI to reproduce results
+
+### Determinism
+Training and evaluation pipelines call `set_global_seed` from
+`imdb_recommender.utils.repro`. The seed is taken from the `IMDBREC_SEED`
+environment variable (default `1234`). Override by setting this variable or
+calling `set_global_seed` directly in tests or scripts.

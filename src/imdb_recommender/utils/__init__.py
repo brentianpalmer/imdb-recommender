@@ -1,3 +1,5 @@
+"""General utility helpers for the IMDb recommender package."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -39,3 +41,6 @@ def filter_by_content_type(df: pd.DataFrame, content_type: str) -> pd.DataFrame:
         return df[df["titleType"].isin(TV_TYPES)]
 
     raise ValueError(f"Unknown content_type: {content_type}")
+
+
+__all__ = ["filter_by_content_type"]
