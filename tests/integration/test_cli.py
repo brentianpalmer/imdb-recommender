@@ -22,6 +22,7 @@ def _patched_ingest(monkeypatch, include_title_type: bool = True):
     ds = Dataset(ratings=ratings, watchlist=watch)
     ingest_res = IngestResult(dataset=ds, warnings=[])
     monkeypatch.setattr("imdb_recommender.cli.ingest_sources", lambda *a, **k: ingest_res)
+    monkeypatch.setattr("imdb_recommender.cli._validate_paths", lambda *a, **k: None)
 
     def fake_score(self, seeds, uw, gw, recency, exclude_rated):
         return {"m1": 0.1, "t1": 0.2}, {}
@@ -55,9 +56,9 @@ def test_cli_recommend_movies_only_returns_no_tv(monkeypatch):
         app,
         [
             "recommend",
-            "--ratings",
+            "--ratings-file",
             "r.csv",
-            "--watchlist",
+            "--watchlist-file",
             "w.csv",
             "--content-type",
             "movies",
@@ -75,9 +76,9 @@ def test_cli_recommend_tv_only_returns_no_movies(monkeypatch):
         app,
         [
             "recommend",
-            "--ratings",
+            "--ratings-file",
             "r.csv",
-            "--watchlist",
+            "--watchlist-file",
             "w.csv",
             "--content-type",
             "tv",
@@ -95,9 +96,9 @@ def test_cli_default_all_includes_both_when_present(monkeypatch):
         app,
         [
             "recommend",
-            "--ratings",
+            "--ratings-file",
             "r.csv",
-            "--watchlist",
+            "--watchlist-file",
             "w.csv",
             "--no-exclude-rated",
         ],
@@ -112,9 +113,9 @@ def test_graceful_when_metadata_missing(monkeypatch):
         app,
         [
             "recommend",
-            "--ratings",
+            "--ratings-file",
             "r.csv",
-            "--watchlist",
+            "--watchlist-file",
             "w.csv",
             "--content-type",
             "movies",

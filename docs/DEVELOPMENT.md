@@ -48,6 +48,7 @@ python scripts/training/run_elasticnet_cv.py \
 ```
 Pass custom paths via CLI flags (`--ratings-file`, `--watchlist-file`) or via
 environment variables `RATINGS_CSV_PATH` and `WATCHLIST_PATH` in `.env`.
+Deprecated aliases `--ratings` and `--watchlist` remain available but emit a warning.
 
 ## Development workflow
 - Branch names: `feature/description` or `bugfix/description`

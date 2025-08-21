@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+from pathlib import Path
 
 import pandas as pd
 import typer
@@ -16,13 +17,63 @@ from .recommender_svd import SVDAutoRecommender
 app = typer.Typer(help="SVD-Powered IMDb Movie Recommender")
 
 
+def _deprecated_ratings(ctx: typer.Context, param: typer.CallbackParam, value: str | None) -> None:
+    """Handle deprecated --ratings option."""
+    if value is not None:
+        typer.echo("⚠️ '--ratings' is deprecated; use '--ratings-file'", err=True)
+        if ctx.params.get("ratings") is None:
+            ctx.params["ratings"] = value
+
+
+def _deprecated_watchlist(
+    ctx: typer.Context, param: typer.CallbackParam, value: str | None
+) -> None:
+    """Handle deprecated --watchlist option."""
+    if value is not None:
+        typer.echo("⚠️ '--watchlist' is deprecated; use '--watchlist-file'", err=True)
+        if ctx.params.get("watchlist") is None:
+            ctx.params["watchlist"] = value
+
+
+def _validate_paths(ratings: str, watchlist: str) -> None:
+    """Ensure ratings and watchlist files exist and are readable."""
+    for name, path in {"ratings": ratings, "watchlist": watchlist}.items():
+        file_path = Path(path)
+        if not file_path.is_file():
+            typer.echo(f"❌ {name} file not found: {path}", err=True)
+            raise typer.Exit(1)
+        try:
+            with file_path.open("r"):
+                pass
+        except OSError as exc:  # pragma: no cover - defensive
+            typer.echo(f"❌ cannot read {name} file: {exc}", err=True)
+            raise typer.Exit(1) from exc
+
+
 @app.command()
 def ingest(
-    ratings: str = typer.Option(..., help="Path to ratings CSV file"),
-    watchlist: str = typer.Option(..., help="Path to watchlist CSV file"),
+    ratings: str = typer.Option(..., "--ratings-file", help="Path to ratings CSV file"),
+    watchlist: str = typer.Option(..., "--watchlist-file", help="Path to watchlist CSV file"),
     data_dir: str = typer.Option("data", help="Data directory for processed files"),
+    _ratings_depr: str | None = typer.Option(
+        None,
+        "--ratings",
+        help="Deprecated alias for --ratings-file",
+        hidden=True,
+        callback=_deprecated_ratings,
+        expose_value=False,
+    ),
+    _watchlist_depr: str | None = typer.Option(
+        None,
+        "--watchlist",
+        help="Deprecated alias for --watchlist-file",
+        hidden=True,
+        callback=_deprecated_watchlist,
+        expose_value=False,
+    ),
 ):
     """Ingest ratings and watchlist data."""
+    _validate_paths(ratings, watchlist)
     res = ingest_sources(ratings_csv=ratings, watchlist_path=watchlist, data_dir=data_dir)
     typer.echo(
         f"✅ Ingested ratings: {len(res.dataset.ratings)}, watchlist: {len(res.dataset.watchlist)}"
@@ -53,22 +104,48 @@ def recommend(
         case_sensitive=False,
         help="Filter recommendations by content type",
     ),
-    ratings: str | None = typer.Option(None, help="Path to ratings CSV file"),
-    watchlist: str | None = typer.Option(None, help="Path to watchlist CSV file"),
+    ratings: str | None = typer.Option(None, "--ratings-file", help="Path to ratings CSV file"),
+    watchlist: str | None = typer.Option(
+        None, "--watchlist-file", help="Path to watchlist CSV file"
+    ),
     config: str | None = typer.Option(None, help="Path to config TOML file"),
     export_csv: str | None = typer.Option(None, help="Export recommendations to CSV file"),
+    _ratings_depr: str | None = typer.Option(
+        None,
+        "--ratings",
+        help="Deprecated alias for --ratings-file",
+        hidden=True,
+        callback=_deprecated_ratings,
+        expose_value=False,
+    ),
+    _watchlist_depr: str | None = typer.Option(
+        None,
+        "--watchlist",
+        help="Deprecated alias for --watchlist-file",
+        hidden=True,
+        callback=_deprecated_watchlist,
+        expose_value=False,
+    ),
 ):
     """Get movie recommendations using optimized SVD algorithm."""
 
     # Load data
     if config:
         cfg = AppConfig.from_file(config)
-        res = ingest_sources(cfg.ratings_csv_path, cfg.watchlist_path, cfg.data_dir)
+        ratings = cfg.ratings_csv_path
+        watchlist = cfg.watchlist_path
+        data_dir = cfg.data_dir
     else:
         if not ratings or not watchlist:
-            typer.echo("❌ Provide --config or both --ratings and --watchlist", err=True)
+            typer.echo(
+                "❌ Provide --config or both --ratings-file and --watchlist-file",
+                err=True,
+            )
             raise typer.Exit(1)
-        res = ingest_sources(ratings_csv=ratings, watchlist_path=watchlist, data_dir="data")
+        data_dir = "data"
+
+    _validate_paths(ratings, watchlist)
+    res = ingest_sources(ratings_csv=ratings, watchlist_path=watchlist, data_dir=data_dir)
 
     typer.echo("🎯 Using optimal SVD hyperparameters (discovered through rigorous testing)")
 
