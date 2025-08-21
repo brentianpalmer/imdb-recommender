@@ -8,5 +8,6 @@ def test_logger(tmp_path):
     logger.log_rate("tt0480249", 9)
     logger.log_rate("tt0480249", 9)
     logger.log_watchlist("tt0111161", add=True)
-    rows = list(csv.DictReader(open(tmp_path / "imdb_actions_log.csv")))
+    with open(tmp_path / "imdb_actions_log.csv", newline="") as f:
+        rows = list(csv.DictReader(f))
     assert len(rows) == 2
