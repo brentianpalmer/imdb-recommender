@@ -7,6 +7,8 @@ from pathlib import Path
 
 from imdb_recommender.logger import ActionLogger
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+
 
 class TestSeleniumIntegration:
     """Test Selenium integration and CSV replay functionality."""
@@ -104,11 +106,7 @@ class TestSeleniumIntegration:
     def test_selenium_replay_script_exists(self):
         """Test that the selenium replay script exists and has correct structure."""
         selenium_file = (
-            Path(__file__).parent.parent
-            / "src"
-            / "imdb_recommender"
-            / "selenium_stub"
-            / "replay_from_csv.py"
+            ROOT_DIR / "src" / "imdb_recommender" / "selenium_stub" / "replay_from_csv.py"
         )
 
         assert selenium_file.exists(), "Selenium replay script should exist"
@@ -215,11 +213,7 @@ class TestSeleniumConfigSafety:
         """Ensure no credentials are hardcoded in selenium files."""
         # Read the selenium file content directly
         selenium_file = (
-            Path(__file__).parent.parent
-            / "src"
-            / "imdb_recommender"
-            / "selenium_stub"
-            / "replay_from_csv.py"
+            ROOT_DIR / "src" / "imdb_recommender" / "selenium_stub" / "replay_from_csv.py"
         )
         content = selenium_file.read_text()
 
@@ -249,11 +243,7 @@ class TestSeleniumConfigSafety:
         """Test that selenium uses secure browser options."""
         # Read source to verify security options are configured
         selenium_file = (
-            Path(__file__).parent.parent
-            / "src"
-            / "imdb_recommender"
-            / "selenium_stub"
-            / "replay_from_csv.py"
+            ROOT_DIR / "src" / "imdb_recommender" / "selenium_stub" / "replay_from_csv.py"
         )
         content = selenium_file.read_text()
 
