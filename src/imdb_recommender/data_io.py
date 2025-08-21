@@ -53,9 +53,11 @@ def load_ratings_csv(path: str) -> pd.DataFrame:
     genres_col = _pick(df, ["genres"])
     imdb_rating_col = _pick(df, ["imdb_rating", "average_rating"])
     votes_col = _pick(df, ["num_votes", "votes"])
-    title_type_col = _pick(df, ["title_type"])
+    title_type_col = _pick(df, ["title_type", "titletype"])
     if not const_col or not yr_col:
         raise ValueError("Could not find required columns in ratings CSV")
+    if not title_type_col:
+        raise ValueError("Missing 'titleType' column in ratings CSV")
     out = pd.DataFrame(
         {
             "imdb_const": df[const_col].astype(str),
@@ -96,9 +98,11 @@ def load_watchlist(path: str) -> pd.DataFrame:
     genres_col = _pick(df, ["genres"])
     imdb_rating_col = _pick(df, ["imdb_rating", "average_rating"])
     votes_col = _pick(df, ["num_votes", "votes"])
-    title_type_col = _pick(df, ["title_type"])
+    title_type_col = _pick(df, ["title_type", "titletype"])
     if not const_col:
         raise ValueError("Could not find 'const' column in watchlist")
+    if not title_type_col:
+        raise ValueError("Missing 'titleType' column in watchlist")
     out = pd.DataFrame({"imdb_const": df[const_col].astype(str), "in_watchlist": True})
     out["title"] = df[title_col].astype(str) if title_col else None
     out["year"] = pd.to_numeric(df[year_col], errors="coerce").astype("Int64") if year_col else None
