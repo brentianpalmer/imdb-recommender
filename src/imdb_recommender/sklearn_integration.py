@@ -1,8 +1,7 @@
-"""
-Scikit-learn Integration Module
+"""Scikit-learn integration module.
 
-Provides sklearn-compatible wrapper for the SVD recommender to leverage
-cross_validate, GridSearchCV, and other sklearn utilities.
+Consolidates all bridges between the internal recommendation APIs and
+scikit-learn utilities such as ``cross_validate`` and ``GridSearchCV``.
 """
 
 from __future__ import annotations
@@ -22,6 +21,25 @@ from .recommender_base import RecommenderAlgo
 from .recommender_svd import SVDAutoRecommender
 
 warnings.filterwarnings("ignore", category=UserWarning)
+
+
+class _DatasetWrapper:
+    """Lightweight array-like wrapper that exposes the dataset to sklearn."""
+
+    def __init__(self, dataset: Dataset):
+        self.dataset = dataset
+        self.shape = (len(dataset.ratings), 2)
+
+    def __len__(self) -> int:  # pragma: no cover - trivial
+        return self.shape[0]
+
+    def __getitem__(self, idx):  # pragma: no cover - simple index access
+        ratings = (
+            self.dataset.ratings.iloc[idx]
+            if hasattr(idx, "__iter__")
+            else [self.dataset.ratings.iloc[idx]]
+        )
+        return np.array([[0, hash(r["imdb_const"]) % 1000] for _, r in ratings.iterrows()])
 
 
 class RecommenderSplitter(_BaseKFold):
@@ -168,26 +186,8 @@ def sklearn_cross_validate(
 ):
     """Cross-validate a recommender using sklearn with custom dataset handling."""
 
-    # Create a minimal array-like object that carries the dataset
-    class DatasetWrapper:
-        def __init__(self, dataset):
-            self.dataset = dataset
-            self.shape = (len(dataset.ratings), 2)  # (user_id, item_id) pairs
-
-        def __len__(self):
-            return self.shape[0]
-
-        def __getitem__(self, idx):
-            # Simple implementation - return user/item pairs
-            ratings = (
-                self.dataset.ratings.iloc[idx]
-                if hasattr(idx, "__iter__")
-                else [self.dataset.ratings.iloc[idx]]
-            )
-            return np.array([[0, hash(r["imdb_const"]) % 1000] for _, r in ratings.iterrows()])
-
     # Prepare data
-    X = DatasetWrapper(dataset)
+    X = _DatasetWrapper(dataset)
     y = dataset.ratings["my_rating"].values
 
     # Use custom splitter
@@ -219,25 +219,8 @@ def sklearn_grid_search(
 ):
     """Grid search for recommender hyperparameters using sklearn."""
 
-    # Create dataset wrapper
-    class DatasetWrapper:
-        def __init__(self, dataset):
-            self.dataset = dataset
-            self.shape = (len(dataset.ratings), 2)
-
-        def __len__(self):
-            return self.shape[0]
-
-        def __getitem__(self, idx):
-            ratings = (
-                self.dataset.ratings.iloc[idx]
-                if hasattr(idx, "__iter__")
-                else [self.dataset.ratings.iloc[idx]]
-            )
-            return np.array([[0, hash(r["imdb_const"]) % 1000] for _, r in ratings.iterrows()])
-
     # Prepare data
-    X = DatasetWrapper(dataset)
+    X = _DatasetWrapper(dataset)
     y = dataset.ratings["my_rating"].values
 
     # Custom CV splitter
