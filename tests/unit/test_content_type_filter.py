@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from imdb_recommender.pipeline import filter_by_content_type
+from imdb_recommender.utils import filter_by_content_type
 
 
 def _build_mixed_df():

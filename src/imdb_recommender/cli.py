@@ -10,7 +10,7 @@ from .config import AppConfig
 from .data_io import ingest_sources
 
 # from .hyperparameter_tuning import HyperparameterTuningPipeline  # Temporarily disabled
-from .pipeline import filter_by_content_type
+from .utils import filter_by_content_type
 from .ranker import Ranker
 from .recommender_svd import SVDAutoRecommender
 
