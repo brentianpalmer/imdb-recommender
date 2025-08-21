@@ -55,6 +55,21 @@ def _patched_ingest(monkeypatch, include_title_type: bool = True):
     monkeypatch.setattr("imdb_recommender.cli.Ranker.top_n", fake_top_n)
 
 
+def test_bad_paths_exit_nonzero():
+    result = runner.invoke(
+        app,
+        [
+            "recommend",
+            "--ratings-file",
+            "missing_ratings.csv",
+            "--watchlist-file",
+            "missing_watchlist.csv",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "not found" in result.stderr.lower() or "unreadable" in result.stderr.lower()
+
+
 def test_cli_recommend_movies_only_returns_no_tv(monkeypatch):
     _patched_ingest(monkeypatch)
     result = runner.invoke(
@@ -112,7 +127,7 @@ def test_cli_default_all_includes_both_when_present(monkeypatch):
     assert "TV1" in result.stdout and "Movie1" in result.stdout
 
 
-def test_graceful_when_metadata_missing(monkeypatch):
+def test_missing_metadata_when_movies_only(monkeypatch):
     _patched_ingest(monkeypatch, include_title_type=False)
     result = runner.invoke(
         app,
@@ -168,6 +183,74 @@ def _patch_algorithms(monkeypatch):
         return out
 
     monkeypatch.setattr("imdb_recommender.cli.Ranker.top_n", fake_top_n)
+
+
+def test_config_parsing(monkeypatch, sample_ratings_path, sample_watchlist_path, tmp_path):
+    monkeypatch.delenv("RATINGS_CSV_PATH", raising=False)
+    monkeypatch.delenv("WATCHLIST_PATH", raising=False)
+    monkeypatch.delenv("DATA_DIR", raising=False)
+    monkeypatch.delenv("RANDOM_SEED", raising=False)
+
+    _patch_algorithms(monkeypatch)
+    cfg_path = tmp_path / "config.toml"
+    cfg_path.write_text(
+        f"[paths]\nratings_csv_path = \"{sample_ratings_path}\"\nwatchlist_path = \"{sample_watchlist_path}\"\ndata_dir = \"{tmp_path}\"\n"
+    )
+    captured = {}
+
+    def patched_ingest(ratings_csv, watchlist_path, data_dir):
+        captured["ratings_csv"] = ratings_csv
+        captured["watchlist_path"] = watchlist_path
+        captured["data_dir"] = data_dir
+        return ingest_sources(ratings_csv, watchlist_path, data_dir=data_dir)
+
+    monkeypatch.setattr("imdb_recommender.cli.ingest_sources", patched_ingest)
+
+    result = runner.invoke(
+        app,
+        [
+            "recommend",
+            "--config",
+            str(cfg_path),
+            "--content-type",
+            "movies",
+            "--no-exclude-rated",
+        ],
+    )
+    assert result.exit_code == 0
+    assert captured["ratings_csv"] == str(sample_ratings_path)
+    assert captured["watchlist_path"] == str(sample_watchlist_path)
+    assert captured["data_dir"] == str(tmp_path)
+
+
+def test_output_dir_artifacts(
+    monkeypatch, sample_ratings_path, sample_watchlist_path, tmp_path
+):
+    _patch_algorithms(monkeypatch)
+
+    def patched_ingest(ratings_csv, watchlist_path, data_dir):
+        return ingest_sources(ratings_csv, watchlist_path, data_dir=str(tmp_path))
+
+    monkeypatch.setattr("imdb_recommender.cli.ingest_sources", patched_ingest)
+
+    output_csv = tmp_path / "recs.csv"
+    result = runner.invoke(
+        app,
+        [
+            "recommend",
+            "--ratings-file",
+            str(sample_ratings_path),
+            "--watchlist-file",
+            str(sample_watchlist_path),
+            "--export-csv",
+            str(output_csv),
+            "--no-exclude-rated",
+        ],
+    )
+    assert result.exit_code == 0
+    artifacts = list(tmp_path.glob("*.csv")) + list(tmp_path.glob("*.json"))
+    assert artifacts
+    assert output_csv.exists() and output_csv.stat().st_size > 0
 
 
 def test_cli_with_fixtures_movies(
