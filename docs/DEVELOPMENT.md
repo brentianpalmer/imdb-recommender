@@ -31,10 +31,9 @@ application loads environment variables via `python-dotenv` when scripts run.
 - `ruff check src tests` – style and static checks
 - `black --check src tests` – ensure formatting
 - `pytest --cov=imdb_recommender --cov-report=xml --cov-fail-under=85` – run tests with coverage
-- Optional changed-lines coverage using diff-cover:
+- Optional changed-lines coverage using diff-cover (installed via test extras):
 ```
 pytest --cov=imdb_recommender --cov-report=xml --cov-fail-under=85
-pip install diff-cover
 diff-cover coverage.xml --compare-branch=origin/main --fail-under=85
 ```
 
@@ -42,7 +41,7 @@ diff-cover coverage.xml --compare-branch=origin/main --fail-under=85
 Never commit real datasets. Use fixtures under `tests/fixtures/data/*`.
 ```
 # Use synthetic samples; pass paths explicitly
-python scripts/training/run_elasticnet_cv.py \
+imdbrec recommend \
   --ratings-file tests/fixtures/data/ratings_sample.csv \
   --watchlist-file tests/fixtures/data/watchlist_sample.csv \
   --topk 10

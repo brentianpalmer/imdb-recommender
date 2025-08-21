@@ -47,11 +47,8 @@ A comprehensive movie and TV show recommendation system that learns your persona
 git clone https://github.com/brentianpalmer/imdb-recommender.git
 cd imdb-recommender
 
-# Install package
-pip install -e .
-
-# Install ML dependencies
-pip install scikit-learn
+# Install package with optional ML dependencies
+pip install -e ".[all]"
 ```
 
 ### Data Setup

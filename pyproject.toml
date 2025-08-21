@@ -25,6 +25,7 @@ dependencies = [
 test = [
   "pytest>=8.0.0",
   "pytest-cov>=4.1.0",
+  "diff-cover>=9.0.0",
   "hypothesis>=6.82.0",
   "selenium>=4.15.0",
   "webdriver-manager>=4.0.0",
