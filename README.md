@@ -2,6 +2,7 @@
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)](#) <!-- TODO: replace with Codecov badge -->
 
 A comprehensive movie and TV show recommendation system that learns your personal taste from your IMDb ratings and watchlist. Features both **SVD collaborative filtering** and **ElasticNet feature engineering** approaches with rigorous scientific validation.
 

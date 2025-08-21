@@ -30,10 +30,10 @@ application loads environment variables via `python-dotenv` when scripts run.
 ## Commands
 - `ruff check src tests` – style and static checks
 - `black --check src tests` – ensure formatting
-- `pytest --cov=imdb_recommender --cov-report=xml` – run tests with coverage
+- `pytest --cov=imdb_recommender --cov-report=xml --cov-fail-under=85` – run tests with coverage
 - Optional changed-lines coverage using diff-cover:
 ```
-pytest --cov=imdb_recommender --cov-report=xml
+pytest --cov=imdb_recommender --cov-report=xml --cov-fail-under=85
 pip install diff-cover
 diff-cover coverage.xml --compare-branch=origin/main --fail-under=85
 ```
@@ -69,8 +69,10 @@ pytest tests/integration -q
 
 ## Continuous Integration
 GitHub Actions (`.github/workflows/ci.yml`) runs:
-- `pytest tests/ -q` on Python 3.12
+- `pytest --cov=imdb_recommender --cov-report=xml --cov-fail-under=85` on Python 3.12
+- `diff-cover coverage.xml --compare-branch=origin/main --fail-under=85` (optional)
 - `ruff check .` and `black --check --diff .` (warnings only)
+- uploads `coverage.xml` as an artifact
 Reproduce locally with the commands in this runbook.
 
 ## Troubleshooting
