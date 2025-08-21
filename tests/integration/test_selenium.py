@@ -105,9 +105,7 @@ class TestSeleniumIntegration:
 
     def test_selenium_replay_script_exists(self):
         """Test that the selenium replay script exists and has correct structure."""
-        selenium_file = (
-            ROOT_DIR / "src" / "imdb_recommender" / "selenium_stub" / "replay_from_csv.py"
-        )
+        selenium_file = ROOT_DIR / "scripts" / "selenium" / "replay_from_csv.py"
 
         assert selenium_file.exists(), "Selenium replay script should exist"
 
@@ -212,9 +210,7 @@ class TestSeleniumConfigSafety:
     def test_credentials_not_hardcoded(self):
         """Ensure no credentials are hardcoded in selenium files."""
         # Read the selenium file content directly
-        selenium_file = (
-            ROOT_DIR / "src" / "imdb_recommender" / "selenium_stub" / "replay_from_csv.py"
-        )
+        selenium_file = ROOT_DIR / "scripts" / "selenium" / "replay_from_csv.py"
         content = selenium_file.read_text()
 
         # Check for common credential patterns (should not be found)
@@ -242,9 +238,7 @@ class TestSeleniumConfigSafety:
     def test_selenium_security_options(self):
         """Test that selenium uses secure browser options."""
         # Read source to verify security options are configured
-        selenium_file = (
-            ROOT_DIR / "src" / "imdb_recommender" / "selenium_stub" / "replay_from_csv.py"
-        )
+        selenium_file = ROOT_DIR / "scripts" / "selenium" / "replay_from_csv.py"
         content = selenium_file.read_text()
 
         # Check for security-related browser options
