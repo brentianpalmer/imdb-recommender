@@ -1,8 +1,6 @@
-import random
 import shutil
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 
@@ -35,6 +33,8 @@ def sample_watchlist_path(tmp_data_dir) -> Path:
 def _force_seed(monkeypatch):
     monkeypatch.setenv("PYTHONHASHSEED", "0")
     try:
+        import numpy as np, random  # noqa: E401,I001
+
         np.random.seed(1234)
         random.seed(1234)
     except Exception:

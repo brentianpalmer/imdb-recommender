@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Canonical location: scripts/analysis/compare_recommendations.py
-# Expected inputs: config.toml, data/raw/ratings.csv, data/raw/watchlist.xlsx
+# Expected inputs: ratings CSV and watchlist CSV
 """
 Compare SVD vs ElasticNet recommendations side by side
 """
@@ -48,13 +48,14 @@ def run(
     print(f"Comparing top {topk} recommendations from both methods")
 
     svd_cmd = (
-        f"{sys.executable} -m imdb_recommender.cli recommend --config config.toml --topk {topk}"
+        f"{sys.executable} -m imdb_recommender.cli recommend "
+        f'--ratings "{ratings_file}" --watchlist "{watchlist_file}" --topk {topk}'
     )
     run_command(svd_cmd, "SVD Collaborative Filtering Recommendations")
 
     en_cmd = (
         f"{sys.executable} scripts/training/elasticnet_recommender.py "
-        f"--ratings-file {ratings_file} --watchlist-file {watchlist_file} --topk {topk}"
+        f'--ratings-file "{ratings_file}" --watchlist-file "{watchlist_file}" --topk {topk}'
     )
     run_command(en_cmd, "ElasticNet Feature Engineering Recommendations")
 
