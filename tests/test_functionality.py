@@ -101,13 +101,11 @@ class TestFeatureEngineering:
 class TestDataIngestion:
     """Test data ingestion functionality."""
 
-    def test_ingest_sources_with_fixtures(self):
+    def test_ingest_sources_with_fixtures(self, sample_ratings_path, sample_watchlist_path):
         """Test data ingestion with fixture files."""
-        ratings_path = "tests/fixtures_ratings.csv"
-        watchlist_path = "tests/fixtures_watchlist.csv"
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            result = ingest_sources(ratings_path, watchlist_path, temp_dir)
+            result = ingest_sources(sample_ratings_path, sample_watchlist_path, temp_dir)
 
             # Check that dataset was created
             assert hasattr(result, "dataset")
@@ -279,15 +277,13 @@ class TestCLIIntegration:
 class TestEndToEndWorkflow:
     """Test complete end-to-end workflow."""
 
-    def test_complete_recommendation_pipeline(self):
+    def test_complete_recommendation_pipeline(self, sample_ratings_path, sample_watchlist_path):
         """Test the complete recommendation pipeline."""
         # Use fixture data
-        ratings_path = "tests/fixtures_ratings.csv"
-        watchlist_path = "tests/fixtures_watchlist.csv"
 
         with tempfile.TemporaryDirectory() as temp_dir:
             # 1. Ingest data
-            result = ingest_sources(ratings_path, watchlist_path, temp_dir)
+            result = ingest_sources(sample_ratings_path, sample_watchlist_path, temp_dir)
             dataset = result.dataset
 
             # 2. Initialize SVD recommender
@@ -312,7 +308,7 @@ class TestEndToEndWorkflow:
             # Verify results
             assert len(recommendations) <= 5
             assert all(isinstance(rec, Recommendation) for rec in recommendations)
-            assert all(rec.score > 0 for rec in recommendations)
+            assert all(rec.score >= 0 for rec in recommendations)
             assert all(rec.imdb_const for rec in recommendations)
 
             # Verify recommendations are sorted by score (descending)

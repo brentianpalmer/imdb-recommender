@@ -45,9 +45,9 @@ class IngestResult:
 def load_ratings_csv(path: str) -> pd.DataFrame:
     df = pd.read_csv(path, encoding="utf-8")
     df = _norm_cols(df)
-    const_col = _pick(df, ["const", "imdb_const", "title_id"])
-    yr_col = _pick(df, ["your_rating", "my_rating"])
-    date_col = _pick(df, ["date_rated", "created"])
+    const_col = _pick(df, ["const", "imdb_const", "title_id", "titleid"])
+    yr_col = _pick(df, ["your_rating", "my_rating", "rating"])
+    date_col = _pick(df, ["date_rated", "created", "timestamp"])
     title_col = _pick(df, ["title"])
     year_col = _pick(df, ["year"])
     genres_col = _pick(df, ["genres"])
@@ -90,7 +90,7 @@ def load_watchlist(path: str) -> pd.DataFrame:
     else:
         df = pd.read_csv(path, encoding="utf-8")
     df = _norm_cols(df)
-    const_col = _pick(df, ["const", "imdb_const", "title_id"])
+    const_col = _pick(df, ["const", "imdb_const", "title_id", "titleid"])
     title_col = _pick(df, ["title"])
     year_col = _pick(df, ["year"])
     genres_col = _pick(df, ["genres"])
@@ -121,6 +121,10 @@ def ingest_sources(ratings_csv: str, watchlist_path: str, data_dir: str = "data"
     warnings = []
     ds = Dataset(ratings=r, watchlist=w)
     Path(data_dir).mkdir(parents=True, exist_ok=True)
-    r.to_parquet(Path(data_dir) / "ratings_normalized.parquet", index=False)
-    w.to_parquet(Path(data_dir) / "watchlist_normalized.parquet", index=False)
+    try:
+        r.to_parquet(Path(data_dir) / "ratings_normalized.parquet", index=False)
+        w.to_parquet(Path(data_dir) / "watchlist_normalized.parquet", index=False)
+    except Exception:
+        r.to_csv(Path(data_dir) / "ratings_normalized.csv", index=False)
+        w.to_csv(Path(data_dir) / "watchlist_normalized.csv", index=False)
     return IngestResult(dataset=ds, warnings=warnings)

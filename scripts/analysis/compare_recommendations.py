@@ -7,6 +7,9 @@ Compare SVD vs ElasticNet recommendations side by side
 
 import subprocess
 import sys
+from pathlib import Path
+
+import typer
 
 
 def run_command(cmd, description):
@@ -28,20 +31,30 @@ def run_command(cmd, description):
         return None
 
 
-def main():
-    print("🎬 SVD vs ElasticNet Recommendation Comparison")
-    print("Comparing top 10 recommendations from both methods")
+app = typer.Typer()
 
-    # SVD Recommendations
-    svd_cmd = f"{sys.executable} -m imdb_recommender.cli recommend --config config.toml --topk 10"
+
+@app.command()
+def run(
+    ratings_file: Path = typer.Option(  # noqa: B008
+        ..., exists=True, readable=True, help="CSV with columns: userId,titleId,rating,timestamp"
+    ),
+    watchlist_file: Path = typer.Option(  # noqa: B008
+        ..., exists=True, readable=True, help="CSV with columns: titleId,added_at"
+    ),
+    topk: int = typer.Option(10, min=1, help="Number of recommendations"),  # noqa: B008
+):
+    print("🎬 SVD vs ElasticNet Recommendation Comparison")
+    print(f"Comparing top {topk} recommendations from both methods")
+
+    svd_cmd = (
+        f"{sys.executable} -m imdb_recommender.cli recommend --config config.toml --topk {topk}"
+    )
     run_command(svd_cmd, "SVD Collaborative Filtering Recommendations")
 
-    # ElasticNet Recommendations
-    ratings_file = "data/raw/ratings.csv"
-    watchlist_file = "data/raw/watchlist.xlsx"
     en_cmd = (
-        f"{sys.executable} elasticnet_recommender.py "
-        f"--ratings_file {ratings_file} --watchlist_file {watchlist_file} --topk 10"
+        f"{sys.executable} scripts/training/elasticnet_recommender.py "
+        f"--ratings-file {ratings_file} --watchlist-file {watchlist_file} --topk {topk}"
     )
     run_command(en_cmd, "ElasticNet Feature Engineering Recommendations")
 
@@ -50,9 +63,9 @@ def main():
     print("=" * 60)
     print("✅ SVD: Uses collaborative filtering with user-item interactions")
     print("✅ ElasticNet: Uses feature engineering with 140+ movie attributes")
-    print("✅ Both methods successfully generated 10 recommendations")
+    print(f"✅ Both methods successfully generated {topk} recommendations")
     print("\n🎯 Different approaches, both scientifically validated!")
 
 
 if __name__ == "__main__":
-    main()
+    app()

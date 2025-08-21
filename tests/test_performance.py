@@ -11,13 +11,11 @@ from imdb_recommender.recommender_svd import SVDAutoRecommender
 class TestSVDPerformance:
     """Test SVD performance and scalability."""
 
-    def test_svd_recommendation_performance(self):
+    def test_svd_recommendation_performance(self, sample_ratings_path, sample_watchlist_path):
         """Test SVD recommendation generation speed."""
-        ratings_csv = "tests/fixtures_ratings.csv"
-        watchlist_csv = "tests/fixtures_watchlist.csv"
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            result = ingest_sources(ratings_csv, watchlist_csv, temp_dir)
+            result = ingest_sources(sample_ratings_path, sample_watchlist_path, temp_dir)
             dataset = result.dataset
             seed_ids = dataset.ratings["imdb_const"].head(3).tolist()
 
@@ -36,13 +34,11 @@ class TestSVDPerformance:
             assert len(svd_expl) > 0
             assert len(svd_scores) == len(svd_expl)
 
-    def test_ranking_performance(self):
+    def test_ranking_performance(self, sample_ratings_path, sample_watchlist_path):
         """Test recommendation ranking and formatting performance."""
-        ratings_csv = "tests/fixtures_ratings.csv"
-        watchlist_csv = "tests/fixtures_watchlist.csv"
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            result = ingest_sources(ratings_csv, watchlist_csv, temp_dir)
+            result = ingest_sources(sample_ratings_path, sample_watchlist_path, temp_dir)
             dataset = result.dataset
 
             # Generate SVD scores

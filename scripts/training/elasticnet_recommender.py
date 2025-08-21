@@ -7,12 +7,13 @@ ElasticNet Movie Recommender
 Generates movie recommendations using ElasticNet with engineered features.
 """
 
-import argparse
 import re
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import typer
 from sklearn.linear_model import ElasticNet
 from sklearn.preprocessing import MultiLabelBinarizer
 
@@ -322,32 +323,39 @@ def generate_elasticnet_recommendations(
     return recommendations.head(topk)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="ElasticNet Movie Recommender")
-    parser.add_argument("--ratings_file", type=str, required=True, help="Path to ratings CSV file")
-    parser.add_argument(
-        "--watchlist_file", type=str, required=True, help="Path to watchlist file (CSV or Excel)"
-    )
-    parser.add_argument("--topk", type=int, default=10, help="Number of recommendations")
-    parser.add_argument("--alpha", type=float, default=0.1, help="ElasticNet alpha parameter")
-    parser.add_argument("--l1_ratio", type=float, default=0.1, help="ElasticNet l1_ratio parameter")
-    parser.add_argument("--export_csv", type=str, default="", help="Export recommendations to CSV")
+app = typer.Typer()
 
-    args = parser.parse_args()
+
+@app.command()
+def run(
+    ratings_file: Path = typer.Option(  # noqa: B008
+        ..., exists=True, readable=True, help="Path to ratings CSV file"
+    ),
+    watchlist_file: Path = typer.Option(  # noqa: B008
+        ..., exists=True, readable=True, help="Path to watchlist file (CSV or Excel)"
+    ),
+    topk: int = typer.Option(10, help="Number of recommendations"),  # noqa: B008
+    alpha: float = typer.Option(0.1, help="ElasticNet alpha parameter"),  # noqa: B008
+    l1_ratio: float = typer.Option(0.1, help="ElasticNet l1_ratio parameter"),  # noqa: B008
+    export_csv: Path | None = typer.Option(  # noqa: B008
+        None, help="Export recommendations to CSV"
+    ),
+):
+    """Generate movie recommendations using ElasticNet."""
 
     print("🎬 ElasticNet Movie Recommender")
     print("=" * 50)
 
     try:
         recommendations = generate_elasticnet_recommendations(
-            ratings_file=args.ratings_file,
-            watchlist_file=args.watchlist_file,
-            topk=args.topk,
-            alpha=args.alpha,
-            l1_ratio=args.l1_ratio,
+            ratings_file=ratings_file,
+            watchlist_file=watchlist_file,
+            topk=topk,
+            alpha=alpha,
+            l1_ratio=l1_ratio,
         )
 
-        print(f"\n🏆 Top {args.topk} ElasticNet Recommendations:")
+        print(f"\n🏆 Top {topk} ElasticNet Recommendations:")
         print("=" * 70)
 
         for i, (_, row) in enumerate(recommendations.iterrows(), 1):
@@ -361,9 +369,9 @@ def main():
             print("    💡 ElasticNet feature-engineered prediction")
             print()
 
-        if args.export_csv:
-            recommendations.to_csv(args.export_csv, index=False)
-            print(f"💾 Exported recommendations to: {args.export_csv}")
+        if export_csv:
+            recommendations.to_csv(export_csv, index=False)
+            print(f"💾 Exported recommendations to: {export_csv}")
 
     except Exception as e:
         print(f"❌ Error generating recommendations: {e}")
@@ -373,4 +381,4 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main())
+    app()

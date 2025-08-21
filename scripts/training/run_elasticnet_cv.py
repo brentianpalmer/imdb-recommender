@@ -10,13 +10,14 @@ Usage:
       --n_splits 5 --alphas 0.01,0.1,0.3,1,3,10 --l1_ratios 0.1,0.5,0.9 \
       --top_dir_k 30 --out_csv results_elasticnet_cv.csv
 """
-import argparse
 import math
 import re
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import typer
 from sklearn.linear_model import ElasticNet
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import StratifiedKFold
@@ -260,65 +261,49 @@ def elasticnet_cv(X, y, bins, alphas, l1_ratios, n_splits=5):
     return res
 
 
-def main():
+app = typer.Typer()
 
-    parser = argparse.ArgumentParser(
-        description="Elastic Net CV on IMDb ratings with engineered features."
-    )
-    parser.add_argument(
-        "--ratings_file", type=str, required=True, help="Path to IMDb ratings CSV export"
-    )
-    parser.add_argument(
-        "--alphas",
-        type=str,
-        default="0.01,0.1,0.3,1,3,10",
+
+@app.command()
+def run(
+    ratings_file: Path = typer.Option(  # noqa: B008
+        ..., exists=True, readable=True, help="CSV with columns: userId,titleId,rating,timestamp"
+    ),
+    alphas: str = typer.Option(  # noqa: B008
+        "0.01,0.1,0.3,1,3,10",
         help="Comma-separated list of alpha values (e.g., '0.01,0.1,0.3,1,3,10')",
-    )
-    parser.add_argument(
-        "--l1_ratios",
-        type=str,
-        default="0.1,0.5,0.9",
+    ),
+    l1_ratios: str = typer.Option(  # noqa: B008
+        "0.1,0.5,0.9",
         help="Comma-separated list of l1_ratio values (e.g., '0.1,0.5,0.9')",
-    )
-    parser.add_argument("--n_splits", type=int, default=5, help="Number of CV folds (default: 5)")
-    parser.add_argument(
-        "--top_dir_k", type=int, default=30, help="Top-K directors to one-hot (default: 30)"
-    )
-    parser.add_argument(
-        "--out_csv",
-        type=str,
-        default="results/elasticnet_cv_results.csv",
-        help="Optional path to write CV results CSV",
-    )
-    args = parser.parse_args()
+    ),
+    n_splits: int = typer.Option(5, help="Number of CV folds"),  # noqa: B008
+    top_dir_k: int = typer.Option(30, help="Top-K directors to one-hot"),  # noqa: B008
+    out_csv: Path | None = typer.Option(  # noqa: B008
+        None, help="Optional path to write CV results CSV"
+    ),
+):
+    """Run Elastic Net cross-validation on the provided ratings file."""
 
-    # Load ratings
-    df = pd.read_csv(args.ratings_file)
-
-    # Build features
-    X, y, meta = engineer_features(df, top_dir_k=args.top_dir_k)
+    df = pd.read_csv(ratings_file)
+    X, y, meta = engineer_features(df, top_dir_k=top_dir_k)
     print(
         f"[INFO] Rows: {meta['n_rows']}, Features: {meta['n_features']} "
         f"(Top-{meta['top_dir_count']} directors)"
     )
 
-    # Stratification labels
     bins = stratify_bins(y)
-
-    # Parse hyperparameters
-    alphas = [float(x) for x in args.alphas.split(",") if str(x).strip()]
-    l1_ratios = [float(x) for x in args.l1_ratios.split(",") if str(x).strip()]
+    alphas_list = [float(x) for x in alphas.split(",") if str(x).strip()]
+    l1_list = [float(x) for x in l1_ratios.split(",") if str(x).strip()]
     print(
-        f"[INFO] Grid: {len(alphas)} alphas × {len(l1_ratios)} l1_ratios = "
-        f"{len(alphas)*len(l1_ratios)} configs"
+        f"[INFO] Grid: {len(alphas_list)} alphas × {len(l1_list)} l1_ratios = "
+        f"{len(alphas_list) * len(l1_list)} configs"
     )
 
-    # Run CV
-    results = elasticnet_cv(X, y, bins, alphas, l1_ratios, n_splits=args.n_splits)
+    results = elasticnet_cv(X, y, bins, alphas_list, l1_list, n_splits=n_splits)
     print("\n=== Elastic Net CV (sorted by RMSE) ===")
     print(results.head(15).to_string(index=False))
 
-    # Best row
     best = results.iloc[0].to_dict()
     print("\n=== Best Configuration ===")
     print(
@@ -327,11 +312,10 @@ def main():
         f"folds={int(best['n_splits'])}"
     )
 
-    # Save CSV
-    if args.out_csv:
-        results.to_csv(args.out_csv, index=False)
-        print(f"[INFO] Wrote CV results to: {args.out_csv}")
+    if out_csv:
+        results.to_csv(out_csv, index=False)
+        print(f"[INFO] Wrote CV results to: {out_csv}")
 
 
 if __name__ == "__main__":
-    main()
+    app()
