@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/analysis/analyze_elasticnet_results.py
+# Expected inputs: results/elasticnet_cv_comprehensive.csv
 """
 Compare ElasticNet Cross Validation results with SVD baseline.
 """

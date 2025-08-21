@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/diagnostics/debug_elasticnet_cv.py
+# Expected inputs: data/raw/ratings.csv
 """
 Diagnostic script to debug ElasticNet cross validation issues.
 """
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import ElasticNet
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
 
 # Import the feature engineering from our CV script
 from elasticnet_cross_validation import engineer_features, sigmoid_scale, standardize_within_fold
+from sklearn.linear_model import ElasticNet
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
 
 RANDOM_STATE = 42
 

@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/training/train_optimal_elasticnet.py
+# Expected inputs: data/raw/ratings.csv
+
 """
 ElasticNet Optimal Model
 Train and save the best ElasticNet model based on cross validation results.
@@ -9,11 +12,11 @@ import pickle
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import ElasticNet
-from sklearn.metrics import mean_squared_error, r2_score
 
 # Import feature engineering from our recommender
 from elasticnet_cross_validation import clip_predictions, engineer_features, standardize_within_fold
+from sklearn.linear_model import ElasticNet
+from sklearn.metrics import mean_squared_error, r2_score
 
 # Optimal hyperparameters from CV
 OPTIMAL_ALPHA = 0.1
@@ -153,9 +156,8 @@ def load_and_predict(model_path, ratings_file):
 
     print(f"   Model performance: RMSE={model_package['performance']['val_rmse']:.4f}")
     print(f"   Features: {model_package['metadata']['n_features']}")
-    print(
-        f"   Selected: {model_package['metadata']['selected_features']} ({100*(1-model_package['metadata']['feature_sparsity']):.1f}%)"
-    )
+    selected_pct = 100 * (1 - model_package["metadata"]["feature_sparsity"])
+    print(f"   Selected: {model_package['metadata']['selected_features']} ({selected_pct:.1f}%)")
 
     return model_package
 
@@ -195,7 +197,9 @@ def main():
     print("\n✅ Optimal ElasticNet model ready!")
     print("   CV Performance: RMSE=1.386 ± 0.095, R²=0.234 ± 0.055")
     print(
-        f"   Current Performance: RMSE={model_package['performance']['val_rmse']:.4f}, R²={model_package['performance']['val_r2']:.4f}"
+        "   Current Performance: "
+        f"RMSE={model_package['performance']['val_rmse']:.4f}, "
+        f"R²={model_package['performance']['val_r2']:.4f}"
     )
 
 

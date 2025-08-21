@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/analysis/validate_comparison.py
+# Expected inputs: results/elasticnet_cv_results.csv and results/svd_corrected_results.json
 """
 Validation test to confirm both ElasticNet and SVD produce consistent results
 """

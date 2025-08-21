@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/training/elasticnet_recommender.py
+# Expected inputs: ratings CSV and watchlist file
+
 """
 ElasticNet Movie Recommender
 Generates movie recommendations using ElasticNet with engineered features.
@@ -72,7 +75,7 @@ def engineer_features(df, top_dir_k=30):
             if content[col].isna().any():
                 global_median_imdb = content[col].median() if content[col].notna().any() else 7.0
                 print(
-                    f"   ⚠️  Found {content[col].isna().sum()} missing IMDb ratings, filling with {global_median_imdb:.1f}"
+                    f"   ⚠️  Found {content[col].isna().sum()} missing IMDb ratings, filling with {global_median_imdb:.1f}"  # noqa: E501
                 )
                 content[col] = content[col].fillna(global_median_imdb)
         else:
@@ -237,7 +240,7 @@ def generate_elasticnet_recommendations(
         after_filter = len(watchlist_df)
         if before_filter > after_filter:
             print(
-                f"   🚫 Filtered out {before_filter - after_filter} future movies (after {current_year})"
+                f"   🚫 Filtered out {before_filter - after_filter} future movies (after {current_year})"  # noqa: E501
             )
             print(f"   📋 Remaining watchlist: {after_filter} movies")
 

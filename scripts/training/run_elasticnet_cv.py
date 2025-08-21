@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/training/run_elasticnet_cv.py
+# Expected inputs: ratings CSV export
 """
 run_elasticnet_cv.py
 Replicates Elastic Net CV result on IMDb ratings export with engineered features.
