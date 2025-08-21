@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/diagnostics/diagnose_elasticnet.py
+# Expected inputs: data/raw/ratings.csv and data/raw/watchlist.xlsx
+
 """
 Diagnostic script to understand ElasticNet prediction issues
 """
@@ -15,10 +18,12 @@ def check_data_issues():
     ratings_df = pd.read_csv("data/raw/ratings.csv")
     print(f"📊 Ratings data: {len(ratings_df)} movies")
     print(
-        f"   Your Rating range: {ratings_df['Your Rating'].min()} - {ratings_df['Your Rating'].max()}"
+        "   Your Rating range: "
+        f"{ratings_df['Your Rating'].min()} - {ratings_df['Your Rating'].max()}"
     )
     print(
-        f"   IMDb Rating range: {ratings_df['IMDb Rating'].min():.1f} - {ratings_df['IMDb Rating'].max():.1f}"
+        "   IMDb Rating range: "
+        f"{ratings_df['IMDb Rating'].min():.1f} - {ratings_df['IMDb Rating'].max():.1f}"
     )
     print(f"   IMDb Rating nulls: {ratings_df['IMDb Rating'].isna().sum()}")
 
@@ -26,7 +31,8 @@ def check_data_issues():
     watchlist_df = pd.read_excel("data/raw/watchlist.xlsx")
     print(f"\n📋 Watchlist data: {len(watchlist_df)} movies")
     print(
-        f"   IMDb Rating range: {watchlist_df['IMDb Rating'].min():.1f} - {watchlist_df['IMDb Rating'].max():.1f}"
+        "   IMDb Rating range: "
+        f"{watchlist_df['IMDb Rating'].min():.1f} - {watchlist_df['IMDb Rating'].max():.1f}"
     )
     print(f"   IMDb Rating nulls: {watchlist_df['IMDb Rating'].isna().sum()}")
 

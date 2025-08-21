@@ -1,3 +1,5 @@
+# Canonical location: scripts/training/fine_tune_svd_corrected.py
+# Expected inputs: data/ratings_normalized.parquet and data/watchlist_normalized.parquet
 """
 Fixed Fine-tune SVD - Addressing Data Leakage Issue
 Corrects the cross-validation to prevent data leakage in the hybrid row.

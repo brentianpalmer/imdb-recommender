@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/diagnostics/test_elasticnet.py
+# Expected inputs: data/raw/ratings.csv
 """
 Quick test of ElasticNet CV on a smaller parameter grid to verify functionality
 """

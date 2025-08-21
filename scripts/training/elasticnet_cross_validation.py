@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/training/elasticnet_cross_validation.py
+# Expected inputs: data/raw/ratings.csv
 """
 ElasticNet Cross Validation
 Runs comprehensive cross validation for the ElasticNet movie recommender.
@@ -277,7 +279,9 @@ def run_cross_validation(
         for l1_ratio in l1_ratios:
             combination += 1
             print(
-                f"\n🧪 Testing combination {combination}/{total_combinations}: alpha={alpha}, l1_ratio={l1_ratio}"
+                "\n🧪 Testing combination "
+                f"{combination}/{total_combinations}: "
+                f"alpha={alpha}, l1_ratio={l1_ratio}"
             )
 
             fold_scores = []
@@ -332,7 +336,9 @@ def run_cross_validation(
             )
 
             print(
-                f"   📊 Average: RMSE={mean_rmse:.3f} ± {std_rmse:.3f}, R²={mean_r2:.3f} ± {std_r2:.3f}"
+                "   📊 Average: "
+                f"RMSE={mean_rmse:.3f} ± {std_rmse:.3f}, "
+                f"R²={mean_r2:.3f} ± {std_r2:.3f}"
             )
 
     # Convert to DataFrame and save

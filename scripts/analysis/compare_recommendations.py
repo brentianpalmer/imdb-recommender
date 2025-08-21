@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Canonical location: scripts/analysis/compare_recommendations.py
+# Expected inputs: config.toml, data/raw/ratings.csv, data/raw/watchlist.xlsx
 """
 Compare SVD vs ElasticNet recommendations side by side
 """
