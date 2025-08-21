@@ -1,6 +1,0 @@
-rank,imdb_const,title,year,genres,svd_score,explanation
-1,tt5491994,Planet Earth II,2016,Documentary,0.604329940915397,latent-factor fit from your ratings and IMDb priors
-2,tt6758316,Formula 1,1950,"Action, Comedy, Drama, Reality-TV, Sport, Thriller",0.604329940915397,latent-factor fit from your ratings and IMDb priors
-3,tt7366338,Chernobyl,2019,"Drama, History, Thriller",0.5967188658939393,latent-factor fit from your ratings and IMDb priors
-4,tt0306414,The Wire,2002,"Crime, Drama, Thriller",0.5967188658939393,latent-factor fit from your ratings and IMDb priors
-5,tt6769208,Blue Planet II,2017,Documentary,0.5967188658939393,latent-factor fit from your ratings and IMDb priors

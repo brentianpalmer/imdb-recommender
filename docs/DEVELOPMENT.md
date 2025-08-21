@@ -22,6 +22,7 @@ pip install -e ".[dev,test]"
 pytest -q
 ruff check src tests
 black --check src tests
+git config core.hooksPath .githooks
 ```
 Copy `.env.example` to `.env` and fill in paths or credentials as needed. The
 application loads environment variables via `python-dotenv` when scripts run.

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Prevent committing raw data or results
+if git diff --cached --name-only | grep -qE '^(data/raw|results)/'; then
+  echo "Error: commits cannot include files in data/raw/ or results/." >&2
+  exit 1
+fi
