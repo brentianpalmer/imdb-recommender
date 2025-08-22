@@ -1,0 +1,27 @@
+[run]
+source = src
+omit = 
+    */tests/*
+    */archive/*
+    */__pycache__/*
+    */venv/*
+    */site-packages/*
+    */.venv/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.
+    # Temporarily disabled
+    
+# Show missing lines in coverage report
+show_missing = True
+
+# Fail if coverage is below threshold
+fail_under = 75
+
+[html]
+directory = htmlcov

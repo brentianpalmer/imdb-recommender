@@ -65,6 +65,9 @@ Thumbs.db
 .coverage
 htmlcov/
 
+# Archive (experimental/research code)
+archive/
+
 # MyPy
 .mypy_cache/
 .dmypy.json
