@@ -10,11 +10,12 @@ from .config import AppConfig
 from .data_io import ingest_sources
 from .ranker import Ranker
 from .recommender_svd import SVDAutoRecommender
+from .recommender_elasticnet import ElasticNetRecommender
 from .utils import filter_by_content_type
 
 # from .hyperparameter_tuning import HyperparameterTuningPipeline  # Temporarily disabled
 
-app = typer.Typer(help="SVD-Powered IMDb Movie Recommender")
+app = typer.Typer(help="Multi-Model IMDb Movie Recommender (SVD + ElasticNet)")
 
 
 def _deprecated_ratings(ctx: typer.Context, param: typer.CallbackParam, value: str | None) -> None:
@@ -86,17 +87,28 @@ class ContentType(str, enum.Enum):
     tv = "tv"
 
 
+class ModelType(str, enum.Enum):
+    svd = "svd"
+    elasticnet = "elasticnet"
+
+
 @app.command()
 def recommend(
     seeds: str = typer.Option("", help="Comma-separated IMDb IDs to base recommendations on"),
     topk: int = typer.Option(25, help="Number of recommendations to return"),
+    model: ModelType = typer.Option(  # noqa: B008
+        ModelType.svd,
+        "--model",
+        case_sensitive=False,
+        help="Choose recommendation model: SVD or ElasticNet",
+    ),
     user_weight: float = typer.Option(
-        0.5, help="Weight for personal preferences (0.0-1.0) [OPTIMAL: 0.5]"
+        0.5, help="Weight for personal preferences (0.0-1.0) [OPTIMAL: 0.5] (SVD only)"
     ),
     global_weight: float = typer.Option(
-        0.1, help="Weight for global popularity (0.0-1.0) [OPTIMAL: 0.1]"
+        0.1, help="Weight for global popularity (0.0-1.0) [OPTIMAL: 0.1] (SVD only)"
     ),
-    recency: float = typer.Option(0.0, help="Recency bias factor"),
+    recency: float = typer.Option(0.0, help="Recency bias factor (SVD only)"),
     exclude_rated: bool = typer.Option(True, help="Exclude already rated items"),
     content_type: ContentType = typer.Option(  # noqa: B008
         ContentType.all,
@@ -127,7 +139,7 @@ def recommend(
         expose_value=False,
     ),
 ):
-    """Get movie recommendations using optimized SVD algorithm."""
+    """Get movie recommendations using SVD or ElasticNet models."""
 
     # Load data
     if config:
@@ -147,29 +159,44 @@ def recommend(
     _validate_paths(ratings, watchlist)
     res = ingest_sources(ratings_csv=ratings, watchlist_path=watchlist, data_dir=data_dir)
 
-    typer.echo("🎯 Using optimal SVD hyperparameters (discovered through rigorous testing)")
-
     seeds_list = [s.strip() for s in seeds.split(",") if s.strip()]
 
-    # Create SVD recommender with built-in optimal hyperparameters
-    svd = SVDAutoRecommender(res.dataset, random_seed=42)
+    # Create and run recommender based on selected model
+    if model == ModelType.svd:
+        typer.echo("🎯 Using optimal SVD hyperparameters (discovered through rigorous testing)")
 
-    # Get SVD recommendations
-    svd_scores, svd_explanations = svd.score(
-        seeds_list, user_weight, global_weight, recency, exclude_rated
-    )
+        # Create SVD recommender with built-in optimal hyperparameters
+        recommender = SVDAutoRecommender(res.dataset, random_seed=42)
 
-    if not svd_scores:
+        # Get SVD recommendations
+        scores, explanations = recommender.score(
+            seeds_list, user_weight, global_weight, recency, exclude_rated
+        )
+        model_name = "SVD"
+
+    else:  # model == ModelType.elasticnet
+        typer.echo("🔬 Using ElasticNet with feature engineering (optimal hyperparameters)")
+
+        # Create ElasticNet recommender with optimal hyperparameters
+        recommender = ElasticNetRecommender(res.dataset, alpha=0.1, l1_ratio=0.1, random_seed=42)
+
+        # Get ElasticNet recommendations
+        scores, explanations = recommender.score(
+            seeds_list, user_weight, global_weight, recency, exclude_rated
+        )
+        model_name = "ElasticNet"
+
+    if not scores:
         typer.echo("❌ No recommendations found")
         return
 
     # Rank without content-type filtering to get global order
     ranker = Ranker(random_seed=42)
     all_recs = ranker.top_n(
-        svd_scores,
+        scores,
         res.dataset,
-        topk=len(svd_scores),
-        explanations={"svd": svd_explanations},
+        topk=len(scores),
+        explanations={model_name.lower(): explanations},
         exclude_rated=exclude_rated,
     )
 
@@ -204,7 +231,7 @@ def recommend(
         return
 
     # Display recommendations
-    typer.echo(f"\n🎬 Top {len(recommendations)} SVD Recommendations:")
+    typer.echo(f"\n🎬 Top {len(recommendations)} {model_name} Recommendations:")
     typer.echo("=" * 80)
 
     for i, rec in enumerate(recommendations, 1):
@@ -224,13 +251,19 @@ def recommend(
 
     # Export to CSV if requested
     if export_csv:
-        export_recommendations_csv(recommendations, export_csv, topk)
+        export_recommendations_csv(recommendations, export_csv, topk, model_name)
         typer.echo(f"💾 Exported {len(recommendations)} recommendations to {export_csv}")
 
 
 @app.command()
 def top_watchlist_movies(
     topk: int = typer.Option(10, help="Number of movie recommendations to return"),
+    model: ModelType = typer.Option(  # noqa: B008
+        ModelType.svd,
+        "--model",
+        case_sensitive=False,
+        help="Choose recommendation model: SVD or ElasticNet",
+    ),
     config: str | None = typer.Option("config.toml", help="Path to config TOML file"),
 ):
     """Get top movie recommendations from your watchlist."""
@@ -242,18 +275,25 @@ def top_watchlist_movies(
     cfg = AppConfig.from_file(config)
     res = ingest_sources(cfg.ratings_csv_path, cfg.watchlist_path, cfg.data_dir)
 
-    # Create SVD recommender with built-in optimal hyperparameters
-    svd = SVDAutoRecommender(res.dataset, random_seed=42)
+    # Create recommender based on selected model
+    if model == ModelType.svd:
+        typer.echo("🎯 Using optimal SVD hyperparameters")
+        recommender = SVDAutoRecommender(res.dataset, random_seed=42)
+        model_name = "SVD"
+    else:
+        typer.echo("🔬 Using ElasticNet with feature engineering")
+        recommender = ElasticNetRecommender(res.dataset, alpha=0.1, l1_ratio=0.1, random_seed=42)
+        model_name = "ElasticNet"
 
     # Get recommendations using optimal weights
-    svd_scores, svd_explanations = svd.score(
+    scores, explanations = recommender.score(
         seeds=[], user_weight=0.5, global_weight=0.1, recency=0.0, exclude_rated=True
     )
 
     # Filter for movies only
     catalog_df = res.dataset.catalog.set_index("imdb_const")
     movie_scores = {}
-    for imdb_id, score in svd_scores.items():
+    for imdb_id, score in scores.items():
         if imdb_id in catalog_df.index:
             if catalog_df.loc[imdb_id, "title_type"] == "Movie":
                 movie_scores[imdb_id] = score
@@ -264,7 +304,7 @@ def top_watchlist_movies(
         movie_scores,
         res.dataset,
         topk=topk,
-        explanations={"svd": svd_explanations},
+        explanations={model_name.lower(): explanations},
         exclude_rated=True,
     )
 
@@ -278,7 +318,7 @@ def top_watchlist_movies(
         explanation = rec.why_explainer or ""
 
         typer.echo(f"{i:2d}. {title} ({year})")
-        typer.echo(f"    🎯 SVD Score: {score:.3f}")
+        typer.echo(f"    🎯 {model_name} Score: {score:.3f}")
         if explanation:
             typer.echo(f"    💡 {explanation}")
         typer.echo()
@@ -287,6 +327,12 @@ def top_watchlist_movies(
 @app.command()
 def top_watchlist_tv(
     topk: int = typer.Option(10, help="Number of TV recommendations to return"),
+    model: ModelType = typer.Option(  # noqa: B008
+        ModelType.svd,
+        "--model",
+        case_sensitive=False,
+        help="Choose recommendation model: SVD or ElasticNet",
+    ),
     config: str | None = typer.Option("config.toml", help="Path to config TOML file"),
 ):
     """Get top TV series recommendations from your watchlist."""
@@ -298,11 +344,18 @@ def top_watchlist_tv(
     cfg = AppConfig.from_file(config)
     res = ingest_sources(cfg.ratings_csv_path, cfg.watchlist_path, cfg.data_dir)
 
-    # Create SVD recommender with built-in optimal hyperparameters
-    svd = SVDAutoRecommender(res.dataset, random_seed=42)
+    # Create recommender based on selected model
+    if model == ModelType.svd:
+        typer.echo("🎯 Using optimal SVD hyperparameters")
+        recommender = SVDAutoRecommender(res.dataset, random_seed=42)
+        model_name = "SVD"
+    else:
+        typer.echo("🔬 Using ElasticNet with feature engineering")
+        recommender = ElasticNetRecommender(res.dataset, alpha=0.1, l1_ratio=0.1, random_seed=42)
+        model_name = "ElasticNet"
 
     # Get recommendations using optimal weights
-    svd_scores, svd_explanations = svd.score(
+    scores, explanations = recommender.score(
         seeds=[], user_weight=0.5, global_weight=0.1, recency=0.0, exclude_rated=True
     )
 
@@ -311,7 +364,7 @@ def top_watchlist_tv(
     tv_scores = {}
     tv_types = ["TV Series", "TV Mini Series", "TV Movie", "TV Special"]
 
-    for imdb_id, score in svd_scores.items():
+    for imdb_id, score in scores.items():
         if imdb_id in catalog_df.index:
             if catalog_df.loc[imdb_id, "title_type"] in tv_types:
                 tv_scores[imdb_id] = score
@@ -322,7 +375,7 @@ def top_watchlist_tv(
         tv_scores,
         res.dataset,
         topk=topk,
-        explanations={"svd": svd_explanations},
+        explanations={model_name.lower(): explanations},
         exclude_rated=True,
     )
 
@@ -337,13 +390,13 @@ def top_watchlist_tv(
         explanation = rec.why_explainer or ""
 
         typer.echo(f"{i:2d}. {title} ({year})")
-        typer.echo(f"    🎯 SVD Score: {score:.3f}  🎬 {genres}")
+        typer.echo(f"    🎯 {model_name} Score: {score:.3f}  🎬 {genres}")
         if explanation:
             typer.echo(f"    💡 {explanation}")
         typer.echo()
 
 
-def export_recommendations_csv(recommendations, filename: str, topk: int):
+def export_recommendations_csv(recommendations, filename: str, topk: int, model_name: str = "SVD"):
     """Export recommendations to CSV file."""
     import pandas as pd
 
@@ -357,7 +410,7 @@ def export_recommendations_csv(recommendations, filename: str, topk: int):
                 "title": rec.title,
                 "year": rec.year,
                 "genres": rec.genres,
-                "svd_score": rec.score,
+                f"{model_name.lower()}_score": rec.score,
                 "explanation": rec.why_explainer,
             }
         )

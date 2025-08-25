@@ -4,8 +4,17 @@ from __future__ import annotations
 
 import pandas as pd
 
-MOVIE_TYPES = {"movie", "short"}
-TV_TYPES = {"tvSeries", "tvMiniSeries", "tvMovie", "tvSpecial"}
+MOVIE_TYPES = {"Movie", "movie", "short"}
+TV_TYPES = {
+    "TV Series",
+    "TV Mini Series",
+    "TV Movie",
+    "TV Special",
+    "tvSeries",
+    "tvMiniSeries",
+    "tvMovie",
+    "tvSpecial",
+}
 
 
 def filter_by_content_type(df: pd.DataFrame, content_type: str) -> pd.DataFrame:

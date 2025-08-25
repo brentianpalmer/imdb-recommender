@@ -25,10 +25,21 @@ class AppConfig:
         p = Path(path)
         with p.open("rb") as f:
             cfg = tomllib.load(f)
-        ratings = os.getenv("RATINGS_CSV_PATH", cfg.get("paths", {}).get("ratings_csv_path", ""))
-        watch = os.getenv("WATCHLIST_PATH", cfg.get("paths", {}).get("watchlist_path", ""))
-        data_dir = os.getenv("DATA_DIR", cfg.get("paths", {}).get("data_dir", "data"))
-        seed = int(os.getenv("RANDOM_SEED", cfg.get("runtime", {}).get("random_seed", 42)))
+
+        # Get values from config file first, then override with env vars if present
+        # Support both 'data' and 'paths' sections for backward compatibility
+        data_section = cfg.get("data", {}) or cfg.get("paths", {})
+        recommendation_section = cfg.get("recommendation", {})
+
+        ratings = os.getenv("RATINGS_CSV_PATH") or data_section.get(
+            "ratings_csv_path", "data/raw/ratings.csv"
+        )
+        watch = os.getenv("WATCHLIST_PATH") or data_section.get(
+            "watchlist_path", "data/raw/watchlist.xlsx"
+        )
+        data_dir = os.getenv("DATA_DIR") or data_section.get("data_dir", "data")
+        seed = int(os.getenv("RANDOM_SEED") or recommendation_section.get("random_seed", 42))
+
         return cls(
             ratings_csv_path=ratings, watchlist_path=watch, data_dir=data_dir, random_seed=seed
         )

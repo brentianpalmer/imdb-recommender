@@ -21,6 +21,7 @@ The ElasticNet approach leverages **106 engineered features** including:
 ### 3. **Scientific Validation**
 Both methods use proper cross-validation:
 - ElasticNet: 5-fold stratified CV
+- 
 - SVD: 3-fold CV (corrected for data leakage)
 - Both approaches avoid data leakage issues
 
