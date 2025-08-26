@@ -9,8 +9,6 @@ try:
 except ModuleNotFoundError:
     import tomli as tomllib
 
-from dotenv import load_dotenv
-
 
 @dataclass
 class AppConfig:
@@ -21,16 +19,15 @@ class AppConfig:
 
     @classmethod
     def from_file(cls, path: str) -> AppConfig:
-        load_dotenv(override=False)
         p = Path(path)
         with p.open("rb") as f:
             cfg = tomllib.load(f)
 
-        # Get values from config file first, then override with env vars if present
         # Support both 'data' and 'paths' sections for backward compatibility
         data_section = cfg.get("data", {}) or cfg.get("paths", {})
         recommendation_section = cfg.get("recommendation", {})
 
+        # Read environment variables if already present (no implicit .env loading)
         ratings = os.getenv("RATINGS_CSV_PATH") or data_section.get(
             "ratings_csv_path", "data/raw/ratings.csv"
         )

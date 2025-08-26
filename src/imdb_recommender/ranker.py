@@ -11,6 +11,19 @@ class Ranker:
     def __init__(self, random_seed: int = 42):
         self.random_seed = random_seed
 
+    def normalize_scores(self, scores: dict[str, float]) -> dict[str, float]:
+        if not scores:
+            return {}
+        vals = np.array(list(scores.values()), dtype=float)
+        vmin = float(np.min(vals))
+        vmax = float(np.max(vals))
+        if not np.isfinite(vmin) or not np.isfinite(vmax):
+            return {k: 0.5 for k in scores.keys()}
+        spread = vmax - vmin
+        if spread <= 0:
+            return {k: 0.5 for k in scores.keys()}
+        return {k: (float(v) - vmin) / spread for k, v in scores.items()}
+
     def blend(self, algo_scores: dict[str, dict[str, float]]) -> dict[str, float]:
         out = {}
         for _, scores in algo_scores.items():
