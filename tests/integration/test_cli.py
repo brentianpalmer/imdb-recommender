@@ -5,7 +5,7 @@ from imdb_recommender.cli import app
 from imdb_recommender.data_io import Dataset, IngestResult, ingest_sources
 from imdb_recommender.schemas import Recommendation
 
-runner = CliRunner()
+runner = CliRunner(mix_stderr=False)
 
 
 def _patched_ingest(monkeypatch, include_title_type: bool = True):

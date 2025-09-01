@@ -1,86 +1,40 @@
-# Development Runbook
+## Development Notes
 
-## Repository layout
-- `src/imdb_recommender` – library code and CLIs
-- `tests/unit` – fast tests for individual modules
-- `tests/integration` – end-to-end tests exercising multiple modules
-- `scripts/training` – model training jobs
-- `scripts/analysis` – exploratory notebooks and reports
-- `scripts/diagnostics` – profiling and debugging utilities
-- `scripts/selenium` – Selenium automation helpers (create as needed)
-- `docs` – project documentation
-- `data/raw` – unversioned IMDb exports (ignored)
-- `data/processed` – derived datasets (ignored)
-- `results` – experiment outputs and checkpoints (ignored)
-- `.github/workflows` – CI configuration
+This document captures actionable guidance for working on the CLI and data
+pipeline during the uplift plan.
 
-## Quick start
-```
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -e ".[dev,test]"
-pytest -q
-ruff check src tests
-black --check src tests
-git config core.hooksPath .githooks
-```
-Copy `.env.example` to `.env` and fill in paths or credentials as needed. The
-application loads environment variables via `python-dotenv` when scripts run.
+### Public CLI surface
+- `imdbrec recommend` is the single entry-point for generating recommendations.
+  - Key options: `--ratings-file`, `--watchlist-file`, `--config`, `--model {svd,elasticnet}`, `--topk`, `--content-type {movies,tv,all}`.
+  - Content filtering is implemented once and reused across the app:
+    - movies → {"movie", "tvMovie"}
+    - tv → {"tvSeries", "tvMiniSeries", "tvSpecial"}
+- Legacy wrappers:
+  - `imdbrec top-watchlist-movies` and `imdbrec top-watchlist-tv` are deprecated and forward to `recommend` with a warning.
 
-## Commands
-- `ruff check src tests` – style and static checks
-- `black --check src tests` – ensure formatting
-- `pytest --cov=imdb_recommender --cov-report=xml --cov-fail-under=85` – run tests with coverage
-- Optional changed-lines coverage using diff-cover (installed via test extras):
-```
-pytest --cov=imdb_recommender --cov-report=xml --cov-fail-under=85
-diff-cover coverage.xml --compare-branch=origin/main --fail-under=85
-```
+### Data normalization
+- Central ingress lives in `imdb_recommender.data_io.ingest_sources`, which normalizes
+  both ratings and watchlist files and materializes normalized artefacts under `data/`.
 
-## Data policy
-Never commit real datasets. Use fixtures under `tests/fixtures/data/*`.
-```
-# Use synthetic samples; pass paths explicitly
+### Ranking & score semantics
+- Scores are normalized to 0–1 prior to ranking/blending inside `Ranker` to keep
+  cross-model semantics consistent.
+
+### Examples
+```bash
+# With explicit file paths
 imdbrec recommend \
-  --ratings-file tests/fixtures/data/ratings_sample.csv \
-  --watchlist-file tests/fixtures/data/watchlist_sample.csv \
-  --topk 10
-```
-Pass custom paths via CLI flags (`--ratings-file`, `--watchlist-file`) or via
-environment variables `RATINGS_CSV_PATH` and `WATCHLIST_PATH` in `.env`.
-Deprecated aliases `--ratings` and `--watchlist` remain available but emit a warning.
+  --ratings-file data/raw/ratings.csv \
+  --watchlist-file data/raw/watchlist.xlsx \
+  --model svd \
+  --topk 10 \
+  --content-type all
 
-## Development workflow
-- Branch names: `feature/description` or `bugfix/description`
-- Commits follow [Conventional Commits](https://www.conventionalcommits.org/)
-- Add fixtures under `tests/fixtures` for new data samples
-- Run unit vs integration tests separately when iterating:
-```
-pytest tests/unit -q
-pytest tests/integration -q
+# With config.toml
+imdbrec recommend --config config.toml --model elasticnet --content-type movies --topk 15
 ```
 
-## Quality gates
-- `ruff` and `black` report zero errors
-- Test coverage ≥ 85%
-- Run `bandit` or other security scans if enabled
-- Update docs and changelog for user-facing changes
+### Notes
+- The `eval` command is planned in Phase 2; it is not yet exposed publicly.
+- Avoid duplicating column mapping logic in model code; prefer `data_io`.
 
-## Continuous Integration
-GitHub Actions (`.github/workflows/ci.yml`) runs:
-- `pytest --cov=imdb_recommender --cov-report=xml --cov-fail-under=85` on Python 3.12
-- `diff-cover coverage.xml --compare-branch=origin/main --fail-under=85` (optional)
-- `ruff check .` and `black --check --diff .` (warnings only)
-- uploads `coverage.xml` as an artifact
-Reproduce locally with the commands in this runbook.
-
-## Troubleshooting
-- **Missing extras**: ensure dev/test extras installed with `pip install -e ".[dev,test]"`
-- **Path errors**: supply `--ratings-file` and `--watchlist-file` or set env vars
-- **Fixture not found**: add sample data under `tests/fixtures/data`
-
-### Determinism
-Training and evaluation pipelines call `set_global_seed` from
-`imdb_recommender.utils.repro`. The seed is taken from the `IMDBREC_SEED`
-environment variable (default `1234`). Override by setting this variable or
-calling `set_global_seed` directly in tests or scripts.

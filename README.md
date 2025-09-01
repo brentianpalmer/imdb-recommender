@@ -60,18 +60,30 @@ pip install -e ".[all]"
 
 ### Generate Recommendations
 ```bash
-# Quick recommendations using SVD
-imdbrec recommend --seeds tt0111161 --topk 10
+# Recommend using SVD with explicit file paths
+imdbrec recommend \
+  --ratings-file data/raw/ratings.csv \
+  --watchlist-file data/raw/watchlist.xlsx \
+  --model svd \
+  --topk 10 \
+  --content-type all
 
-# Feature-rich ElasticNet approach (optimal model)
-python elasticnet_recommender.py --ratings_file data/raw/ratings.csv --watchlist_file data/raw/watchlist.xlsx --topk 10
+# Recommend using ElasticNet via config.toml
+imdbrec recommend \
+  --config config.toml \
+  --model elasticnet \
+  --topk 10 \
+  --content-type movies
 
-# Run full cross validation
-python elasticnet_cross_validation.py --ratings_file data/raw/ratings.csv --n_splits 5
-
-# Train optimal model
-python train_optimal_elasticnet.py --ratings_file data/raw/ratings.csv
+# Filter by content type
+# movies → {movie, tvMovie}, tv → {tvSeries, tvMiniSeries, tvSpecial}
+imdbrec recommend --config config.toml --content-type tv --topk 15
 ```
+
+Deprecation notice
+- The legacy commands `imdbrec top-watchlist-movies` and `imdbrec top-watchlist-tv` are deprecated.
+  They forward to `imdbrec recommend` and print a one-line warning. Prefer the new form:
+  `imdbrec recommend --content-type movies|tv`.
 
 ## 🔬 Scientific Validation
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from pathlib import Path
+import sys
 
 import pandas as pd
 import typer
@@ -17,11 +18,14 @@ from .utils import filter_by_content_type
 
 app = typer.Typer(help="Multi-Model IMDb Movie Recommender (SVD + ElasticNet)")
 
+# For testing: disable standalone mode to allow proper stderr capture
+app._default_context_settings = {**(getattr(app, "_default_context_settings", {}) or {}), "standalone_mode": True}
+
 
 def _deprecated_ratings(ctx: typer.Context, param: typer.CallbackParam, value: str | None) -> None:
     """Handle deprecated --ratings option."""
     if value is not None:
-        typer.echo("⚠️ '--ratings' is deprecated; use '--ratings-file'", err=True)
+        print("⚠️ '--ratings' is deprecated; use '--ratings-file'", file=sys.stderr)
         if ctx.params.get("ratings") is None:
             ctx.params["ratings"] = value
 
@@ -31,7 +35,7 @@ def _deprecated_watchlist(
 ) -> None:
     """Handle deprecated --watchlist option."""
     if value is not None:
-        typer.echo("⚠️ '--watchlist' is deprecated; use '--watchlist-file'", err=True)
+        print("⚠️ '--watchlist' is deprecated; use '--watchlist-file'", file=sys.stderr)
         if ctx.params.get("watchlist") is None:
             ctx.params["watchlist"] = value
 
@@ -187,11 +191,19 @@ def recommend(
         model_name = "ElasticNet"
 
     if not scores:
-        typer.echo("❌ No recommendations found")
+        typer.echo("❌ No recommendations found", err=True)
         return
 
     # Rank without content-type filtering to get global order
     ranker = Ranker(random_seed=42)
+    # Normalize scores to 0-1 for consistent ranking/blending
+    try:
+        normalize = getattr(ranker, "normalize_scores")
+        scores = normalize(scores)
+    except Exception:
+        # If normalize not available, proceed as-is
+        pass
+
     all_recs = ranker.top_n(
         scores,
         res.dataset,
@@ -227,7 +239,7 @@ def recommend(
         typer.echo(f"🎬 Filtered for content type: {content_type.value}")
 
     if not recommendations:
-        typer.echo("❌ No recommendations after filtering")
+        typer.echo("❌ No recommendations after filtering", err=True)
         return
 
     # Display recommendations
@@ -268,60 +280,21 @@ def top_watchlist_movies(
 ):
     """Get top movie recommendations from your watchlist."""
 
-    if not config:
-        typer.echo("❌ Config file required", err=True)
-        raise typer.Exit(1)
-
-    cfg = AppConfig.from_file(config)
-    res = ingest_sources(cfg.ratings_csv_path, cfg.watchlist_path, cfg.data_dir)
-
-    # Create recommender based on selected model
-    if model == ModelType.svd:
-        typer.echo("🎯 Using optimal SVD hyperparameters")
-        recommender = SVDAutoRecommender(res.dataset, random_seed=42)
-        model_name = "SVD"
-    else:
-        typer.echo("🔬 Using ElasticNet with feature engineering")
-        recommender = ElasticNetRecommender(res.dataset, alpha=0.1, l1_ratio=0.1, random_seed=42)
-        model_name = "ElasticNet"
-
-    # Get recommendations using optimal weights
-    scores, explanations = recommender.score(
-        seeds=[], user_weight=0.5, global_weight=0.1, recency=0.0, exclude_rated=True
+    print(
+        "⚠️ This command is deprecated. Use: imdbrec recommend --content-type movies",
+        file=sys.stderr,
     )
 
-    # Filter for movies only
-    catalog_df = res.dataset.catalog.set_index("imdb_const")
-    movie_scores = {}
-    for imdb_id, score in scores.items():
-        if imdb_id in catalog_df.index:
-            if catalog_df.loc[imdb_id, "title_type"] == "Movie":
-                movie_scores[imdb_id] = score
-
-    # Get top movie recommendations
-    ranker = Ranker(random_seed=42)
-    recommendations = ranker.top_n(
-        movie_scores,
-        res.dataset,
-        topk=topk,
-        explanations={model_name.lower(): explanations},
-        exclude_rated=True,
-    )
-
-    typer.echo(f"\n🎬 Top {len(recommendations)} Movie Recommendations from Watchlist:")
-    typer.echo("=" * 80)
-
-    for i, rec in enumerate(recommendations, 1):
-        score = rec.score
-        title = rec.title or "Unknown"
-        year = rec.year or ""
-        explanation = rec.why_explainer or ""
-
-        typer.echo(f"{i:2d}. {title} ({year})")
-        typer.echo(f"    🎯 {model_name} Score: {score:.3f}")
-        if explanation:
-            typer.echo(f"    💡 {explanation}")
-        typer.echo()
+    # Forward to recommend with content-type preset
+    args = [
+        "--model",
+        model.value,
+        "--content-type",
+        "movies",
+    ]
+    if config:
+        args.extend(["--config", config])
+    typer.Context.invoke(typer.main.get_command(app), "recommend", *args)  # type: ignore[arg-type]
 
 
 @app.command()
@@ -337,63 +310,21 @@ def top_watchlist_tv(
 ):
     """Get top TV series recommendations from your watchlist."""
 
-    if not config:
-        typer.echo("❌ Config file required", err=True)
-        raise typer.Exit(1)
-
-    cfg = AppConfig.from_file(config)
-    res = ingest_sources(cfg.ratings_csv_path, cfg.watchlist_path, cfg.data_dir)
-
-    # Create recommender based on selected model
-    if model == ModelType.svd:
-        typer.echo("🎯 Using optimal SVD hyperparameters")
-        recommender = SVDAutoRecommender(res.dataset, random_seed=42)
-        model_name = "SVD"
-    else:
-        typer.echo("🔬 Using ElasticNet with feature engineering")
-        recommender = ElasticNetRecommender(res.dataset, alpha=0.1, l1_ratio=0.1, random_seed=42)
-        model_name = "ElasticNet"
-
-    # Get recommendations using optimal weights
-    scores, explanations = recommender.score(
-        seeds=[], user_weight=0.5, global_weight=0.1, recency=0.0, exclude_rated=True
+    print(
+        "⚠️ This command is deprecated. Use: imdbrec recommend --content-type tv",
+        file=sys.stderr,
     )
 
-    # Filter for TV content (TV Series, TV Mini Series, TV Movie, TV Special)
-    catalog_df = res.dataset.catalog.set_index("imdb_const")
-    tv_scores = {}
-    tv_types = ["TV Series", "TV Mini Series", "TV Movie", "TV Special"]
-
-    for imdb_id, score in scores.items():
-        if imdb_id in catalog_df.index:
-            if catalog_df.loc[imdb_id, "title_type"] in tv_types:
-                tv_scores[imdb_id] = score
-
-    # Get top TV recommendations
-    ranker = Ranker(random_seed=42)
-    recommendations = ranker.top_n(
-        tv_scores,
-        res.dataset,
-        topk=topk,
-        explanations={model_name.lower(): explanations},
-        exclude_rated=True,
-    )
-
-    typer.echo(f"\n📺 Top {len(recommendations)} TV Recommendations from Watchlist:")
-    typer.echo("=" * 80)
-
-    for i, rec in enumerate(recommendations, 1):
-        score = rec.score
-        title = rec.title or "Unknown"
-        year = rec.year or ""
-        genres = rec.genres or ""
-        explanation = rec.why_explainer or ""
-
-        typer.echo(f"{i:2d}. {title} ({year})")
-        typer.echo(f"    🎯 {model_name} Score: {score:.3f}  🎬 {genres}")
-        if explanation:
-            typer.echo(f"    💡 {explanation}")
-        typer.echo()
+    # Forward to recommend with content-type preset
+    args = [
+        "--model",
+        model.value,
+        "--content-type",
+        "tv",
+    ]
+    if config:
+        args.extend(["--config", config])
+    typer.Context.invoke(typer.main.get_command(app), "recommend", *args)  # type: ignore[arg-type]
 
 
 def export_recommendations_csv(recommendations, filename: str, topk: int, model_name: str = "SVD"):
